@@ -11,7 +11,7 @@ export function buildVideoMetrics(
   subscriberCount: number,
   subscriberCountHidden: boolean,
   publishedAt: string,
-): Omit<VideoMetrics, "rankingScore"> & { rawScore: number } {
+): VideoMetrics & { rawScore: number } {
   const raw = computeRawTrendingMetrics({
     viewCount,
     subscriberCount,
@@ -25,6 +25,7 @@ export function buildVideoMetrics(
     viewDelta: raw.viewDelta,
     viewVelocity: raw.viewVelocity,
     viewsPerSubscriber: raw.viewsPerSubscriber,
+    rankingScore: 0,
     metricsSource: "estimated",
     rawScore: raw.rawScore,
   };

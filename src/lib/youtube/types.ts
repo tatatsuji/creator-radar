@@ -33,6 +33,7 @@ export interface YouTubeVideoItem {
   statistics?: {
     viewCount?: string;
     likeCount?: string;
+    commentCount?: string;
   };
 }
 

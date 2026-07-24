@@ -2,7 +2,7 @@ import { computeRawTrendingMetrics, getPeriodHours } from "@/lib/ranking/score";
 import { buildVideoMetrics } from "@/lib/ranking/metrics";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
-import type { MetricsSource, RankingPeriod, Video } from "@/types";
+import type { MetricsSource, RankingPeriod, Video, VideoMetrics } from "@/types";
 import type { VideoSnapshotRow } from "@/types/database";
 
 const MAX_DRIFT_RATIO = 0.25;
@@ -95,7 +95,7 @@ export function buildMetricsWithSnapshotFallback(input: {
   subscriberCountHidden: boolean;
   publishedAt: string;
   snapshots: VideoSnapshotRow[];
-}): Video["metrics"] & { rawScore: number } {
+}): VideoMetrics & { rawScore: number } {
   const measured = computeSnapshotPeriodMetrics({
     period: input.period,
     currentViewCount: input.viewCount,
@@ -138,6 +138,7 @@ export function buildMetricsWithSnapshotFallback(input: {
 
   return {
     ...estimated,
+    rankingScore: 0,
     metricsSource: "estimated",
   };
 }

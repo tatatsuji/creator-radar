@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180" role="img" aria-label="Thumbnail">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a24"/>
+      <stop offset="100%" stop-color="#12121a"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#bg)"/>
+  <rect x="120" y="65" width="80" height="50" rx="8" fill="rgba(139,92,246,0.2)" stroke="rgba(139,92,246,0.35)" stroke-width="1"/>
+  <polygon points="140,65 140,115 175,90" fill="rgba(167,139,250,0.6)"/>
+  <text x="160" y="145" text-anchor="middle" fill="#71717a" font-family="sans-serif" font-size="11">Thumbnail</text>
+</svg>

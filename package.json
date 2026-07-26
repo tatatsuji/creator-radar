@@ -6,7 +6,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "seed:load": "tsx --env-file=.env.local scripts/load-seed-channels.ts",
+    "seed:dry-run": "tsx --env-file=.env.local scripts/load-seed-channels.ts --dry-run",
+    "verify:pipeline": "tsx --env-file=.env.local scripts/verify-phase1-pipeline.ts",
+    "measurement:backfill": "tsx --env-file=.env.local scripts/measurement-backfill.ts",
+    "measurement:backfill:dry-run": "tsx --env-file=.env.local scripts/measurement-backfill.ts --dry-run",
+    "verify:measurement": "tsx --env-file=.env.local scripts/verify-measurement.ts",
+    "observability:status": "tsx --env-file=.env.local scripts/observability-status.ts",
+    "observability:daily-report": "tsx --env-file=.env.local scripts/observability-daily-report.ts",
+    "validation:24h": "tsx --env-file=.env.local scripts/24h-validation-collection.ts",
+    "validation:24h:finalize": "tsx --env-file=.env.local scripts/24h-validation-collection.ts --finalize",
+    "cron:measurement": "tsx scripts/trigger-measurement.ts",
+    "cron:discovery": "tsx scripts/trigger-discovery.ts",
+    "verify:automation": "tsx --env-file=.env.local scripts/verify-automation.ts",
+    "verify:admin-secret": "tsx --env-file=.env.local scripts/verify-admin-secret.ts",
+    "db:apply:004-dev": "tsx --env-file=.env.local scripts/apply-migration-004-dev.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
@@ -17,11 +33,15 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
+    "pg": "^8.22.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.1",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

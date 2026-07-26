@@ -1,11 +1,11 @@
-import { computeRawTrendingMetrics, getPeriodHours } from "@/lib/ranking/score";
+import { computeRawTrendingMetrics, computeRadarScore } from "@/lib/ranking/score";
+import { getPeriodHours } from "@/lib/ranking/periods";
 import { buildVideoMetrics } from "@/lib/ranking/metrics";
+import { computeMeasuredSnapshotDelta } from "@/lib/snapshots/measuredDelta";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import type { MetricsSource, RankingPeriod, Video, VideoMetrics } from "@/types";
 import type { VideoSnapshotRow } from "@/types/database";
-
-const MAX_DRIFT_RATIO = 0.25;
 
 export interface SnapshotPeriodMetrics {
   viewDelta: number;
@@ -13,33 +13,6 @@ export interface SnapshotPeriodMetrics {
   viewsPerSubscriber: number;
   metricsSource: MetricsSource;
   baselineCapturedAt: string;
-}
-
-function getMaxDriftMs(period: RankingPeriod): number {
-  return getPeriodHours(period) * 60 * 60 * 1000 * MAX_DRIFT_RATIO;
-}
-
-function findClosestSnapshot(
-  snapshots: VideoSnapshotRow[],
-  targetMs: number,
-): VideoSnapshotRow | null {
-  if (snapshots.length === 0) {
-    return null;
-  }
-
-  return snapshots.reduce<VideoSnapshotRow | null>((closest, snapshot) => {
-    const snapshotMs = new Date(snapshot.captured_at).getTime();
-    const diff = Math.abs(snapshotMs - targetMs);
-
-    if (!closest) {
-      return snapshot;
-    }
-
-    const closestDiff = Math.abs(
-      new Date(closest.captured_at).getTime() - targetMs,
-    );
-    return diff < closestDiff ? snapshot : closest;
-  }, null);
 }
 
 export function computeSnapshotPeriodMetrics(input: {
@@ -51,40 +24,28 @@ export function computeSnapshotPeriodMetrics(input: {
   snapshots: VideoSnapshotRow[];
   now?: Date;
 }): SnapshotPeriodMetrics | null {
-  const now = input.now ?? new Date();
-  const nowMs = now.getTime();
-  const targetMs = nowMs - getPeriodHours(input.period) * 60 * 60 * 1000;
-  const baseline = findClosestSnapshot(input.snapshots, targetMs);
+  const measured = computeMeasuredSnapshotDelta({
+    windowHours: getPeriodHours(input.period),
+    snapshots: input.snapshots,
+    currentViewCount: input.currentViewCount,
+    now: input.now,
+  });
 
-  if (!baseline) {
+  if (measured.status !== "measured" || measured.viewDelta == null || measured.viewVelocity == null) {
     return null;
   }
 
-  const baselineMs = new Date(baseline.captured_at).getTime();
-  const driftMs = Math.abs(baselineMs - targetMs);
-
-  if (driftMs > getMaxDriftMs(input.period)) {
-    return null;
-  }
-
-  if (baselineMs >= nowMs) {
-    return null;
-  }
-
-  const viewDelta = Math.max(0, input.currentViewCount - baseline.view_count);
-  const hoursElapsed = Math.max((nowMs - baselineMs) / (1000 * 60 * 60), 1);
-  const viewVelocity = viewDelta / hoursElapsed;
   const viewsPerSubscriber =
     !input.subscriberCountHidden && input.subscriberCount > 0
-      ? viewDelta / input.subscriberCount
+      ? measured.viewDelta / input.subscriberCount
       : 0;
 
   return {
-    viewDelta,
-    viewVelocity,
+    viewDelta: measured.viewDelta,
+    viewVelocity: measured.viewVelocity,
     viewsPerSubscriber,
     metricsSource: "measured",
-    baselineCapturedAt: baseline.captured_at,
+    baselineCapturedAt: measured.baselineCapturedAt ?? "",
   };
 }
 
@@ -94,6 +55,7 @@ export function buildMetricsWithSnapshotFallback(input: {
   subscriberCount: number;
   subscriberCountHidden: boolean;
   publishedAt: string;
+  channelName?: string;
   snapshots: VideoSnapshotRow[];
 }): VideoMetrics & { rawScore: number } {
   const measured = computeSnapshotPeriodMetrics({
@@ -112,6 +74,7 @@ export function buildMetricsWithSnapshotFallback(input: {
       subscriberCountHidden: input.subscriberCountHidden,
       publishedAt: input.publishedAt,
       period: input.period,
+      channelName: input.channelName,
       measuredViewDelta: measured.viewDelta,
       measuredViewVelocity: measured.viewVelocity,
       measuredViewsPerSubscriber: measured.viewsPerSubscriber,
@@ -122,7 +85,7 @@ export function buildMetricsWithSnapshotFallback(input: {
       viewDelta: measured.viewDelta,
       viewVelocity: measured.viewVelocity,
       viewsPerSubscriber: measured.viewsPerSubscriber,
-      rankingScore: 0,
+      rankingScore: computeRadarScore(raw.rawScore),
       metricsSource: "measured",
       rawScore: raw.rawScore,
     };
@@ -134,13 +97,29 @@ export function buildMetricsWithSnapshotFallback(input: {
     input.subscriberCount,
     input.subscriberCountHidden,
     input.publishedAt,
+    input.channelName,
   );
 
   return {
     ...estimated,
-    rankingScore: 0,
+    rankingScore: computeRadarScore(estimated.rawScore),
     metricsSource: "estimated",
   };
+}
+
+export function resolveLatestSnapshotCapturedAt(
+  snapshotsByVideo: Map<string, VideoSnapshotRow[]>,
+): string | null {
+  let latest: string | null = null;
+
+  for (const snapshots of snapshotsByVideo.values()) {
+    const capturedAt = snapshots.at(-1)?.captured_at ?? null;
+    if (capturedAt && (!latest || capturedAt > latest)) {
+      latest = capturedAt;
+    }
+  }
+
+  return latest;
 }
 
 export async function mergeSnapshotMetricsIntoVideos(
@@ -150,28 +129,33 @@ export async function mergeSnapshotMetricsIntoVideos(
     }
   >,
   period: RankingPeriod,
-): Promise<
-  Array<
+): Promise<{
+  videos: Array<
     Video & {
       metrics: Video["metrics"] & { rawScore?: number };
     }
-  >
-> {
+  >;
+  latestSnapshotAt: string | null;
+}> {
   if (!isSupabaseConfigured() || videos.length === 0) {
-    return videos.map((video) => ({
-      ...video,
-      metrics: {
-        ...video.metrics,
-        metricsSource: video.metrics.metricsSource ?? "estimated",
-      },
-    }));
+    return {
+      videos: videos.map((video) => ({
+        ...video,
+        metrics: {
+          ...video.metrics,
+          metricsSource: video.metrics.metricsSource ?? "estimated",
+        },
+      })),
+      latestSnapshotAt: null,
+    };
   }
 
   const snapshotsByVideo = await fetchSnapshotsForVideos(
     videos.map((video) => video.id),
   );
+  const latestSnapshotAt = resolveLatestSnapshotCapturedAt(snapshotsByVideo);
 
-  return videos.map((video) => {
+  const mergedVideos = videos.map((video) => {
     const snapshots = snapshotsByVideo.get(video.id) ?? [];
 
     if (snapshots.length < 2) {
@@ -190,6 +174,7 @@ export async function mergeSnapshotMetricsIntoVideos(
       subscriberCount: video.channel.subscriberCount,
       subscriberCountHidden: video.channel.subscriberCountHidden ?? false,
       publishedAt: video.publishedAt,
+      channelName: video.channel.name,
       snapshots,
     });
 
@@ -198,6 +183,11 @@ export async function mergeSnapshotMetricsIntoVideos(
       metrics,
     };
   });
+
+  return {
+    videos: mergedVideos,
+    latestSnapshotAt,
+  };
 }
 
 export function getSnapshotMetricsSummary(

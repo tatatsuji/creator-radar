@@ -1,15 +1,8 @@
-export type RankingPeriod = "24h" | "3d" | "7d";
+import type { GenreId, RankingPeriod } from "./observability";
+import type { RankingDisplayInfo } from "./ranking";
 
-export type GenreId =
-  | "all"
-  | "entertainment"
-  | "music"
-  | "game"
-  | "education"
-  | "news"
-  | "howto"
-  | "sports"
-  | "other";
+export type { GenreId, RankingPeriod };
+export type { RankingDisplayInfo, RankingType } from "./ranking";
 
 export interface Genre {
   id: GenreId;
@@ -44,6 +37,8 @@ export interface Video {
   channel: Channel;
   viewCount: number;
   metrics: VideoMetrics;
+  rankingDisplay?: RankingDisplayInfo;
+  durationSeconds?: number;
 }
 
 export interface RankingItem {

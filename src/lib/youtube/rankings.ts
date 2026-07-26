@@ -1,12 +1,23 @@
 import type { GenreId, RankingPeriod, Video } from "@/types";
 
-import { getYouTubeCategoryId } from "@/lib/youtube/categories";
-import { youtubeFetch } from "@/lib/youtube/client";
 import {
-  applyTrendingScores,
   buildVideoMetrics,
+  finalizeRankedVideos,
 } from "@/lib/ranking/metrics";
-import { mergeSnapshotMetricsIntoVideos } from "@/lib/ranking/snapshotMetrics";
+import { getPublishedAfter, RANKING_PERIODS } from "@/lib/ranking/periods";
+import {
+  genreSupportsPopularChart,
+  getYouTubeCategoryId,
+} from "@/lib/youtube/categories";
+import { youtubeFetch } from "@/lib/youtube/client";
+import { isChartNotFoundError } from "@/lib/youtube/errors";
+import {
+  filterByGenreCategory,
+  filterShortFormVideos,
+  mergeVideoItems,
+} from "@/lib/youtube/filters";
+import { parseIsoDurationSeconds } from "@/lib/youtube/duration";
+import { parseCount, pickVideoThumbnail } from "@/lib/youtube/helpers";
 import type {
   YouTubeChannelItem,
   YouTubeChannelsResponse,
@@ -16,41 +27,7 @@ import type {
 } from "@/lib/youtube/types";
 
 const MAX_RESULTS = 50;
-
-const KNOWN_CATEGORY_IDS = [
-  "24",
-  "10",
-  "20",
-  "27",
-  "25",
-  "26",
-  "17",
-];
-
-function getPublishedAfter(period: RankingPeriod): string {
-  const date = new Date();
-  const hours =
-    period === "24h" ? 24 : period === "3d" ? 24 * 3 : 24 * 7;
-  date.setHours(date.getHours() - hours);
-  return date.toISOString();
-}
-
-function pickThumbnail(
-  thumbnails: YouTubeVideoItem["snippet"]["thumbnails"],
-): string {
-  return (
-    thumbnails.maxres?.url ??
-    thumbnails.high?.url ??
-    thumbnails.medium?.url ??
-    thumbnails.default?.url ??
-    "/placeholder-thumbnail.svg"
-  );
-}
-
-function parseCount(value?: string): number {
-  const parsed = Number.parseInt(value ?? "0", 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
+const MIN_RESULTS_BEFORE_SUPPLEMENT = 20;
 
 function mapVideoItem(
   item: YouTubeVideoItem,
@@ -63,6 +40,8 @@ function mapVideoItem(
   const subscriberCount = subscriberCountHidden
     ? 0
     : parseCount(channel?.statistics?.subscriberCount);
+  const channelName = channel?.snippet.title ?? item.snippet.channelTitle;
+  const durationSeconds = parseIsoDurationSeconds(item.contentDetails?.duration);
 
   const metrics = buildVideoMetrics(
     period,
@@ -70,23 +49,25 @@ function mapVideoItem(
     subscriberCount,
     subscriberCountHidden,
     item.snippet.publishedAt,
+    channelName,
   );
 
   return {
     id: item.id,
     title: item.snippet.title,
     description: item.snippet.description,
-    thumbnailUrl: pickThumbnail(item.snippet.thumbnails),
+    thumbnailUrl: pickVideoThumbnail(item),
     publishedAt: item.snippet.publishedAt,
     channel: {
       id: item.snippet.channelId,
-      name: channel?.snippet.title ?? item.snippet.channelTitle,
+      name: channelName,
       subscriberCount,
       subscriberCountHidden,
       thumbnailUrl: channel?.snippet.thumbnails?.default?.url,
     },
     viewCount,
     metrics,
+    durationSeconds: durationSeconds > 0 ? durationSeconds : undefined,
   };
 }
 
@@ -106,6 +87,36 @@ async function fetchChannels(
   return new Map(response.items.map((item) => [item.id, item]));
 }
 
+export async function fetchYouTubeChannelsByIds(
+  channelIds: string[],
+): Promise<Map<string, YouTubeChannelItem>> {
+  const uniqueIds = [...new Set(channelIds)];
+  const channels = new Map<string, YouTubeChannelItem>();
+
+  for (let index = 0; index < uniqueIds.length; index += 50) {
+    const batch = await fetchChannels(uniqueIds.slice(index, index + 50));
+    for (const [id, channel] of batch) {
+      channels.set(id, channel);
+    }
+  }
+
+  return channels;
+}
+
+async function mapRankingCandidates(
+  videoItems: YouTubeVideoItem[],
+  period: RankingPeriod,
+): Promise<Video[]> {
+  const uniqueChannelIds = [
+    ...new Set(videoItems.map((item) => item.snippet.channelId)),
+  ];
+  const channels = await fetchChannels(uniqueChannelIds);
+
+  return videoItems.map((item) =>
+    mapVideoItem(item, channels.get(item.snippet.channelId), period),
+  );
+}
+
 async function enrichVideos(
   videoItems: YouTubeVideoItem[],
   period: RankingPeriod,
@@ -119,14 +130,7 @@ async function enrichVideos(
     mapVideoItem(item, channels.get(item.snippet.channelId), period),
   );
 
-  const withSnapshotMetrics = await mergeSnapshotMetricsIntoVideos(
-    mapped,
-    period,
-  );
-
-  return applyTrendingScores(withSnapshotMetrics).sort(
-    (a, b) => b.metrics.rankingScore - a.metrics.rankingScore,
-  );
+  return finalizeRankedVideos(mapped, period);
 }
 
 async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideoItem[]> {
@@ -134,20 +138,30 @@ async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideoItem[]
     return [];
   }
 
-  const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
-    part: "snippet,statistics",
-    id: videoIds.join(","),
-    maxResults: String(Math.min(videoIds.length, 50)),
-  });
+  const items: YouTubeVideoItem[] = [];
 
-  return response.items;
+  for (let index = 0; index < videoIds.length; index += 50) {
+    const batch = videoIds.slice(index, index + 50);
+    const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
+      part: "snippet,statistics,contentDetails",
+      id: batch.join(","),
+      maxResults: String(Math.min(batch.length, 50)),
+    });
+    items.push(...response.items);
+  }
+
+  return items;
 }
 
 async function fetchMostPopularVideos(
   genre: GenreId,
 ): Promise<YouTubeVideoItem[]> {
+  if (!genreSupportsPopularChart(genre)) {
+    return [];
+  }
+
   const params: Record<string, string> = {
-    part: "snippet,statistics",
+    part: "snippet,statistics,contentDetails",
     chart: "mostPopular",
     regionCode: "JP",
     maxResults: String(MAX_RESULTS),
@@ -158,8 +172,16 @@ async function fetchMostPopularVideos(
     params.videoCategoryId = categoryId;
   }
 
-  const response = await youtubeFetch<YouTubeVideosResponse>("videos", params);
-  return response.items;
+  try {
+    const response = await youtubeFetch<YouTubeVideosResponse>("videos", params);
+    return response.items;
+  } catch (error) {
+    if (isChartNotFoundError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 function filterByPublishedAfter(
@@ -172,69 +194,137 @@ function filterByPublishedAfter(
   );
 }
 
-async function getVideoItemsForPeriod(
-  period: RankingPeriod,
-  genre: GenreId,
-): Promise<YouTubeVideoItem[]> {
-  if (period === "24h") {
-    if (genre === "other") {
-      const searched = await searchVideos(period, genre);
-      if (searched.length > 0) {
-        return searched;
-      }
-      return filterByPublishedAfter(await fetchMostPopularVideos("all"), period);
-    }
-    return fetchMostPopularVideos(genre);
-  }
-
-  const searched = await searchVideos(period, genre);
-  if (searched.length > 0) {
-    return searched;
-  }
-
-  const popularGenre = genre === "other" ? "all" : genre;
-  return filterByPublishedAfter(
-    await fetchMostPopularVideos(popularGenre),
-    period,
-  );
-}
-
 async function searchVideos(
   period: RankingPeriod,
   genre: GenreId,
 ): Promise<YouTubeVideoItem[]> {
-  const params: Record<string, string> = {
-    part: "snippet",
-    type: "video",
-    regionCode: "JP",
-    relevanceLanguage: "ja",
-    order: "viewCount",
-    publishedAfter: getPublishedAfter(period),
-    maxResults: String(MAX_RESULTS),
-  };
+  const publishedAfter = getPublishedAfter(period);
+  const orders: Array<"viewCount" | "date"> = ["viewCount", "date"];
 
-  const categoryId = getYouTubeCategoryId(genre);
-  if (categoryId) {
-    params.videoCategoryId = categoryId;
+  for (const order of orders) {
+    const params: Record<string, string> = {
+      part: "snippet",
+      type: "video",
+      regionCode: "JP",
+      order,
+      publishedAfter,
+      maxResults: String(MAX_RESULTS),
+    };
+
+    const categoryId = getYouTubeCategoryId(genre);
+    if (categoryId) {
+      params.videoCategoryId = categoryId;
+    }
+
+    try {
+      const searchResponse = await youtubeFetch<YouTubeSearchResponse>(
+        "search",
+        params,
+      );
+
+      const videoIds = searchResponse.items
+        .map((item) => item.id.videoId)
+        .filter((id): id is string => Boolean(id));
+
+      if (videoIds.length === 0) {
+        continue;
+      }
+
+      const videoItems = await fetchVideoDetails(videoIds);
+      return videoItems.sort(
+        (a, b) =>
+          parseCount(b.statistics?.viewCount) - parseCount(a.statistics?.viewCount),
+      );
+    } catch {
+      continue;
+    }
   }
 
-  const searchResponse = await youtubeFetch<YouTubeSearchResponse>(
-    "search",
-    params,
-  );
+  return [];
+}
 
-  const videoIds = searchResponse.items
-    .map((item) => item.id.videoId)
-    .filter((id): id is string => Boolean(id));
+function prepareVideoItems(
+  items: YouTubeVideoItem[],
+  period: RankingPeriod,
+  genre: GenreId,
+): YouTubeVideoItem[] {
+  const periodFiltered = filterByPublishedAfter(items, period);
+  const genreFiltered = filterByGenreCategory(periodFiltered, genre);
+  const withoutShorts = filterShortFormVideos(genreFiltered);
 
-  return fetchVideoDetails(videoIds);
+  return withoutShorts.slice(0, MAX_RESULTS);
+}
+
+async function getVideoItemsForPeriod(
+  period: RankingPeriod,
+  genre: GenreId,
+): Promise<YouTubeVideoItem[]> {
+  const searched = await searchVideos(period, genre);
+  let combined = searched;
+
+  if (combined.length < MIN_RESULTS_BEFORE_SUPPLEMENT) {
+    const supplementGenre = genreSupportsPopularChart(genre) ? genre : "all";
+    const popular = await fetchMostPopularVideos(supplementGenre);
+
+    if (popular.length === 0 && supplementGenre !== "all") {
+      combined = mergeVideoItems(combined, await fetchMostPopularVideos("all"));
+    } else {
+      combined = mergeVideoItems(combined, popular);
+    }
+  }
+
+  let prepared = prepareVideoItems(combined, period, genre);
+
+  if (prepared.length < MIN_RESULTS_BEFORE_SUPPLEMENT) {
+    const extraPopular = await fetchMostPopularVideos("all");
+    combined = mergeVideoItems(combined, extraPopular);
+    prepared = prepareVideoItems(combined, period, genre);
+  }
+
+  return prepared;
+}
+
+let availableGenresCache: { ids: GenreId[]; expiresAt: number } | null = null;
+
+const BASE_AVAILABLE_GENRES: GenreId[] = [
+  "all",
+  "entertainment",
+  "music",
+  "game",
+  "news",
+  "howto",
+  "sports",
+  "other",
+];
+
+export async function getAvailableGenreIds(): Promise<GenreId[]> {
+  if (availableGenresCache && Date.now() < availableGenresCache.expiresAt) {
+    return availableGenresCache.ids;
+  }
+
+  const available: GenreId[] = [...BASE_AVAILABLE_GENRES];
+
+  try {
+    const educationItems = await getVideoItemsForPeriod("7d", "education");
+    if (educationItems.length > 0) {
+      available.splice(4, 0, "education");
+    }
+  } catch {
+    // Education is search-only; omit when no results are returned.
+  }
+
+  availableGenresCache = {
+    ids: available,
+    expiresAt: Date.now() + 60 * 60 * 1000,
+  };
+
+  return available;
 }
 
 export async function getCollectTargetVideoItems(): Promise<YouTubeVideoItem[]> {
-  const periods: RankingPeriod[] = ["24h", "3d", "7d"];
   const videosById = new Map<string, YouTubeVideoItem>();
 
-  for (const period of periods) {
+  for (const { id: period } of RANKING_PERIODS) {
     const items = await getVideoItemsForPeriod(period, "all");
     for (const item of items) {
       videosById.set(item.id, item);
@@ -244,24 +334,20 @@ export async function getCollectTargetVideoItems(): Promise<YouTubeVideoItem[]> 
   return [...videosById.values()];
 }
 
+export async function getRankingCandidates(
+  period: RankingPeriod,
+  genre: GenreId,
+): Promise<Video[]> {
+  const videoItems = await getVideoItemsForPeriod(period, genre);
+  return mapRankingCandidates(videoItems, period);
+}
+
 export async function getRankings(
   period: RankingPeriod,
   genre: GenreId,
 ): Promise<Video[]> {
   const videoItems = await getVideoItemsForPeriod(period, genre);
-
-  const filteredItems =
-    genre === "other"
-      ? videoItems.filter((item) => {
-          const categoryId = item.snippet.categoryId;
-          if (!categoryId) {
-            return true;
-          }
-          return !KNOWN_CATEGORY_IDS.includes(categoryId);
-        })
-      : videoItems;
-
-  return enrichVideos(filteredItems, period);
+  return enrichVideos(videoItems, period);
 }
 
 export async function getVideoById(
@@ -269,7 +355,7 @@ export async function getVideoById(
   period: RankingPeriod = "24h",
 ): Promise<Video | null> {
   const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
-    part: "snippet,statistics",
+    part: "snippet,statistics,contentDetails",
     id,
     maxResults: "1",
   });
@@ -283,11 +369,7 @@ export async function getVideoById(
   const mapped = [
     mapVideoItem(item, channels.get(item.snippet.channelId), period),
   ];
-  const [withSnapshotMetrics] = await mergeSnapshotMetricsIntoVideos(
-    mapped,
-    period,
-  );
-  const [video] = applyTrendingScores([withSnapshotMetrics]);
+  const [video] = await finalizeRankedVideos(mapped, period);
 
   return video ?? null;
 }

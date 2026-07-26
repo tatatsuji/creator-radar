@@ -18,11 +18,18 @@
     "observability:daily-report": "tsx --env-file=.env.local scripts/observability-daily-report.ts",
     "validation:24h": "tsx --env-file=.env.local scripts/24h-validation-collection.ts",
     "validation:24h:finalize": "tsx --env-file=.env.local scripts/24h-validation-collection.ts --finalize",
-    "cron:measurement": "tsx scripts/trigger-measurement.ts",
-    "cron:discovery": "tsx scripts/trigger-discovery.ts",
+    "locks:release-expired": "tsx --env-file=.env.local scripts/release-expired-measurement-locks.ts",
+    "locks:release-all": "tsx --env-file=.env.local scripts/release-expired-measurement-locks.ts --force",
+    "cron:measurement": "tsx --env-file=.env.local scripts/trigger-measurement.ts",
+    "cron:snapshots": "tsx --env-file=.env.local scripts/trigger-snapshots.ts",
+    "cron:discovery": "tsx --env-file=.env.local scripts/trigger-discovery.ts",
+    "verify:snapshots": "tsx --env-file=.env.local scripts/verify-snapshots.ts",
+    "measurement:force-dev": "tsx --env-file=.env.local scripts/force-dev-measurement.ts",
+    "measurement:force-dev:dry-run": "tsx --env-file=.env.local scripts/force-dev-measurement.ts --dry-run",
     "verify:automation": "tsx --env-file=.env.local scripts/verify-automation.ts",
     "verify:admin-secret": "tsx --env-file=.env.local scripts/verify-admin-secret.ts",
-    "db:apply:004-dev": "tsx --env-file=.env.local scripts/apply-migration-004-dev.ts"
+    "db:apply:004-dev": "tsx --env-file=.env.local scripts/apply-migration-004-dev.ts",
+    "db:apply:005-dev": "tsx --env-file=.env.local scripts/apply-migration-005-dev.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

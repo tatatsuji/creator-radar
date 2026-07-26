@@ -2,118 +2,163 @@ import Link from "next/link";
 
 import {
   formatCount,
-  formatSubscriberCount,
-  formatViewsPerSubscriber,
+  formatRelativePublishedAt,
 } from "@/lib/format";
-import { getVelocityDisplay } from "@/lib/ranking/metrics";
+import {
+  getCardHeroMetric,
+  getCardRankReason,
+  getCardScoreMetric,
+  getCardSecondaryVelocity,
+  RADAR_SCORE_EXPLANATION,
+} from "@/lib/ranking/cardDisplay";
+import { buildVideoDetailHref, type HomeUrlState } from "@/lib/home/urlState";
 import { MetricsSourceBadge } from "@/components/ui/MetricsSourceBadge";
+import { RemoteImage } from "@/components/ui/RemoteImage";
 import type { RankingPeriod, Video } from "@/types";
+import type { RankingType } from "@/types/ranking";
 
 interface VideoCardProps {
   video: Video;
   rank: number;
   period: RankingPeriod;
+  ranking: RankingType;
+  homeUrlState: HomeUrlState;
+  isSearchResult?: boolean;
 }
 
-export function VideoCard({ video, rank, period }: VideoCardProps) {
+export function VideoCard({
+  video,
+  rank,
+  period,
+  ranking,
+  homeUrlState,
+  isSearchResult = false,
+}: VideoCardProps) {
   const isFirst = rank === 1;
-  const velocity = getVelocityDisplay(video, period);
+  const heroMetric = getCardHeroMetric(video, period);
+  const secondaryVelocity = getCardSecondaryVelocity(video, period);
+  const scoreMetric = getCardScoreMetric(video);
+  const rankReason = getCardRankReason(video);
+  const rankLabel = isSearchResult ? `検索 #${rank}` : `#${rank}`;
+  const detailHref = buildVideoDetailHref(video.id, {
+    ...homeUrlState,
+    period,
+    ranking,
+  });
+  const youtubeUrl = `https://www.youtube.com/watch?v=${video.id}`;
+  const isMeasured = video.metrics.metricsSource === "measured";
 
   return (
-    <Link
-      href={`/videos/${video.id}?period=${period}`}
-      className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050508] rounded-2xl"
+    <article
+      className={`glass-card group overflow-hidden ${isFirst ? "glass-card--gold" : ""}`}
     >
-      <article
-        className={`glass-card group overflow-hidden ${isFirst ? "glass-card--gold" : ""}`}
+      <Link
+        href={detailHref}
+        className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050508]"
       >
         <div className="relative aspect-video overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <RemoteImage
             src={video.thumbnailUrl}
             alt={`${video.title}のサムネイル`}
-            width={320}
-            height={180}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+            width={640}
+            height={360}
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+            fallbackClassName="h-full w-full"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
 
           <div
-            className={`absolute left-4 top-4 flex h-9 min-w-9 items-center justify-center rounded-xl px-2.5 text-sm font-bold backdrop-blur-md ${
+            className={`absolute left-3 top-3 flex h-9 min-w-9 items-center justify-center rounded-xl px-2.5 text-sm font-bold backdrop-blur-md sm:left-4 sm:top-4 ${
               isFirst
                 ? "bg-gradient-to-br from-amber-400 to-amber-600 text-black shadow-lg shadow-amber-500/40"
                 : "border border-white/10 bg-black/50 text-zinc-100"
             }`}
           >
-            #{rank}
+            {rankLabel}
           </div>
 
-          <div className="absolute bottom-3 right-3 flex items-center gap-2">
+          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 sm:bottom-4 sm:left-4 sm:right-4">
             <MetricsSourceBadge source={video.metrics.metricsSource} />
-            <div className="rounded-xl border border-white/10 bg-black/50 px-2.5 py-1 text-xs font-medium text-violet-200 backdrop-blur-md">
-              急上昇 {Math.round(video.metrics.rankingScore)}
-            </div>
+            <span
+              className="rounded-lg bg-black/50 px-2 py-1 text-[11px] font-medium text-zinc-200 backdrop-blur-sm"
+              title={scoreMetric.explanation ?? RADAR_SCORE_EXPLANATION}
+            >
+              {scoreMetric.label} {scoreMetric.value}
+            </span>
           </div>
         </div>
 
-        <div className="space-y-4 p-5">
-          <div>
-            <h2 className="line-clamp-2 text-base font-semibold leading-snug tracking-tight text-zinc-50 transition group-hover:text-white">
+        <div className="space-y-3 p-4 sm:p-5">
+          <div className="space-y-1.5">
+            <h2 className="line-clamp-2 text-base font-semibold leading-snug text-zinc-50 transition group-hover:text-white">
               {video.title}
             </h2>
-            <p className="mt-2 text-sm text-zinc-400">{video.channel.name}</p>
+            <p className="truncate text-sm text-zinc-400">{video.channel.name}</p>
+            <p className="text-xs text-zinc-500">
+              {formatRelativePublishedAt(video.publishedAt)} · 総再生{" "}
+              {formatCount(video.viewCount)}回
+            </p>
+            {rankReason ? (
+              <p className="text-xs leading-relaxed text-zinc-400">{rankReason}</p>
+            ) : null}
           </div>
 
-          <dl className="grid grid-cols-2 gap-3">
-            <Metric label="再生数" value={`${formatCount(video.viewCount)}回`} />
-            <Metric
-              label="登録者数"
-              value={formatSubscriberCount(
-                video.channel.subscriberCount,
-                video.channel.subscriberCountHidden,
-              )}
-            />
-            <Metric
-              label="再生/登録者"
-              value={formatViewsPerSubscriber(
-                video.metrics.viewsPerSubscriber,
-                video.channel.subscriberCountHidden,
-              )}
-              accent
-            />
-            <Metric
-              label="再生速度"
-              value={`${velocity.value}${velocity.unit}`}
-              accent
-            />
-          </dl>
+          <div
+            className={`rounded-xl border px-4 py-3 ${
+              isMeasured
+                ? "border-emerald-500/25 bg-emerald-500/10"
+                : "border-violet-500/25 bg-violet-500/10"
+            }`}
+          >
+            <p
+              className={`text-[11px] font-medium uppercase tracking-wider ${
+                isMeasured ? "text-emerald-300/90" : "text-violet-300/90"
+              }`}
+            >
+              {heroMetric.label}
+            </p>
+            <p
+              className={`mt-1 text-2xl font-bold tabular-nums ${
+                isMeasured ? "text-emerald-100" : "text-violet-100"
+              }`}
+            >
+              {heroMetric.value}
+            </p>
+            {secondaryVelocity ? (
+              <p className="mt-1 text-xs tabular-nums text-zinc-400">
+                {secondaryVelocity.label} {secondaryVelocity.value}
+              </p>
+            ) : null}
+          </div>
         </div>
-      </article>
-    </Link>
+      </Link>
+
+      <div className="flex gap-2 border-t border-white/[0.06] px-4 py-3 sm:px-5">
+        <Link
+          href={detailHref}
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06]"
+        >
+          詳細を見る
+        </Link>
+        <a
+          href={youtubeUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-red-600/90 px-4 text-sm font-medium text-white transition hover:bg-red-500"
+          aria-label="YouTubeで開く"
+        >
+          <YouTubeIcon />
+          <span className="hidden sm:inline">YouTube</span>
+        </a>
+      </div>
+    </article>
   );
 }
 
-function Metric({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
+function YouTubeIcon() {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
-      <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-        {label}
-      </dt>
-      <dd
-        className={`mt-1 text-sm font-semibold tabular-nums ${
-          accent ? "text-violet-300" : "text-zinc-200"
-        }`}
-      >
-        {value}
-      </dd>
-    </div>
+    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 00.5 6.2 31.5 31.5 0 000 12a31.5 31.5 0 00.5 5.8 3 3 0 002.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 002.1-2.1A31.5 31.5 0 0024 12a31.5 31.5 0 00-.5-5.8zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
+    </svg>
   );
 }

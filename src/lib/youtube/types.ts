@@ -35,6 +35,9 @@ export interface YouTubeVideoItem {
     likeCount?: string;
     commentCount?: string;
   };
+  contentDetails?: {
+    duration?: string;
+  };
 }
 
 export interface YouTubeVideosResponse {

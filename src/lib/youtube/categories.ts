@@ -12,6 +12,19 @@ export const genreToYouTubeCategoryId: Partial<
   sports: "17",
 };
 
+export const KNOWN_CATEGORY_IDS = Object.values(genreToYouTubeCategoryId);
+
+/** Genres whose category has no mostPopular chart in JP region. */
+export const GENRES_WITHOUT_POPULAR_CHART = new Set<GenreId>(["education"]);
+
+export function genreSupportsPopularChart(genre: GenreId): boolean {
+  if (genre === "all" || genre === "other") {
+    return true;
+  }
+
+  return !GENRES_WITHOUT_POPULAR_CHART.has(genre);
+}
+
 export function getYouTubeCategoryId(genre: GenreId): string | undefined {
   if (genre === "all" || genre === "other") {
     return undefined;

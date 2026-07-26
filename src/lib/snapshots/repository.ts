@@ -33,6 +33,35 @@ function isMissingRunTypeColumnError(error: {
   );
 }
 
+function isDuplicateKeyError(error: { code?: string }): boolean {
+  return error.code === "23505";
+}
+
+function isMissingSubscriberCountColumnError(error: {
+  code?: string;
+  message?: string;
+}): boolean {
+  return (
+    error.code === "42703" ||
+    error.message?.includes("subscriber_count") === true
+  );
+}
+
+const VIDEO_SNAPSHOT_SELECT_WITH_SUBSCRIBER =
+  "id, video_id, view_count, like_count, comment_count, subscriber_count, captured_at";
+
+const VIDEO_SNAPSHOT_SELECT_WITHOUT_SUBSCRIBER =
+  "id, video_id, view_count, like_count, comment_count, captured_at";
+
+function withNullSubscriberCount(
+  row: Omit<VideoSnapshotRow, "subscriber_count">,
+): VideoSnapshotRow {
+  return {
+    ...row,
+    subscriber_count: null,
+  };
+}
+
 async function hasRecentSnapshot(
   table: "video_snapshots" | "channel_snapshots",
   idColumn: "video_id" | "channel_id",
@@ -265,13 +294,24 @@ export async function insertVideoSnapshotRaw(
   const supabase = createSupabaseServerClient();
   const capturedAt = input.capturedAt ?? new Date().toISOString();
 
-  const { error } = await supabase.from("video_snapshots").insert({
+  const payloadWithSubscriber = {
     video_id: input.videoId,
     view_count: input.viewCount,
     like_count: input.likeCount ?? null,
     comment_count: input.commentCount ?? null,
+    subscriber_count: input.subscriberCount ?? null,
     captured_at: capturedAt,
-  });
+  };
+
+  let { error } = await supabase.from("video_snapshots").insert(payloadWithSubscriber);
+
+  if (error && isMissingSubscriberCountColumnError(error)) {
+    const { subscriber_count: _subscriberCount, ...payloadWithoutSubscriber } =
+      payloadWithSubscriber;
+    ({ error } = await supabase
+      .from("video_snapshots")
+      .insert(payloadWithoutSubscriber));
+  }
 
   if (error) {
     if (isDuplicateKeyError(error)) {
@@ -282,6 +322,52 @@ export async function insertVideoSnapshotRaw(
   }
 
   return "inserted";
+}
+
+export async function fillVideoSnapshotSubscriberCountIfNull(
+  videoId: string,
+  subscriberCount: number | null,
+  capturedAt: string,
+): Promise<boolean> {
+  if (subscriberCount === null) {
+    return false;
+  }
+
+  const supabase = createSupabaseServerClient();
+  const capturedMs = Date.parse(capturedAt);
+  const capturedDate = new Date(capturedMs);
+  const hourStart = new Date(
+    Date.UTC(
+      capturedDate.getUTCFullYear(),
+      capturedDate.getUTCMonth(),
+      capturedDate.getUTCDate(),
+      capturedDate.getUTCHours(),
+      0,
+      0,
+      0,
+    ),
+  );
+  const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000);
+
+  const { data, error } = await supabase
+    .from("video_snapshots")
+    .update({ subscriber_count: subscriberCount })
+    .eq("video_id", videoId)
+    .is("subscriber_count", null)
+    .gte("captured_at", hourStart.toISOString())
+    .lt("captured_at", hourEnd.toISOString())
+    .select("id");
+
+  if (error) {
+    if (isMissingSubscriberCountColumnError(error)) {
+      return false;
+    }
+    throw new Error(
+      `video_snapshots subscriber_count fill failed: ${error.message}`,
+    );
+  }
+
+  return (data?.length ?? 0) > 0;
 }
 
 export async function updateVideoLastObservedAt(
@@ -317,6 +403,29 @@ export async function countVideoSnapshots(): Promise<number> {
   }
 
   return count ?? 0;
+}
+
+export async function countVideoSnapshotsWithSubscriberCount(): Promise<number> {
+  if (!isSupabaseConfigured()) {
+    return 0;
+  }
+
+  const supabase = createSupabaseServerClient();
+  const withSubscriber = await supabase
+    .from("video_snapshots")
+    .select("*", { count: "exact", head: true })
+    .not("subscriber_count", "is", null);
+
+  if (withSubscriber.error) {
+    if (isMissingSubscriberCountColumnError(withSubscriber.error)) {
+      return 0;
+    }
+    throw new Error(
+      `video_snapshots subscriber_count count failed: ${withSubscriber.error.message}`,
+    );
+  }
+
+  return withSubscriber.count ?? 0;
 }
 
 export async function countVideoSnapshotsSince(sinceIso: string): Promise<number> {
@@ -600,6 +709,76 @@ export async function insertChannelSnapshotIfNeeded(
   return "inserted";
 }
 
+export async function fetchChannelIdsForVideos(
+  videoIds: string[],
+): Promise<Map<string, string | null>> {
+  const result = new Map<string, string | null>();
+
+  if (!isSupabaseConfigured() || videoIds.length === 0) {
+    return result;
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("videos")
+    .select("youtube_video_id, channel_id")
+    .in("youtube_video_id", videoIds);
+
+  if (error) {
+    throw new Error(`videos channel lookup failed: ${error.message}`);
+  }
+
+  for (const row of data ?? []) {
+    result.set(row.youtube_video_id, row.channel_id ?? null);
+  }
+
+  return result;
+}
+
+export async function fetchLatestChannelSubscriberCounts(
+  channelIds: string[],
+): Promise<Map<string, number | null>> {
+  const result = new Map<string, number | null>();
+
+  if (!isSupabaseConfigured() || channelIds.length === 0) {
+    return result;
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("channel_snapshots")
+    .select("channel_id, subscriber_count, captured_at")
+    .in("channel_id", channelIds)
+    .order("captured_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`channel_snapshots lookup failed: ${error.message}`);
+  }
+
+  for (const row of data ?? []) {
+    if (!result.has(row.channel_id)) {
+      result.set(row.channel_id, row.subscriber_count ?? null);
+    }
+  }
+
+  const { data: channels, error: channelsError } = await supabase
+    .from("channels")
+    .select("youtube_channel_id, subscriber_count_hidden")
+    .in("youtube_channel_id", channelIds);
+
+  if (channelsError) {
+    throw new Error(`channels lookup failed: ${channelsError.message}`);
+  }
+
+  for (const channel of channels ?? []) {
+    if (channel.subscriber_count_hidden) {
+      result.set(channel.youtube_channel_id, null);
+    }
+  }
+
+  return result;
+}
+
 /** @deprecated Use insertVideoSnapshotIfNeeded */
 export async function insertVideoSnapshot(
   input: InsertSnapshotInput,
@@ -624,18 +803,38 @@ export async function fetchSnapshotsForVideoInRange(
 
   const since = new Date(Date.now() - rangeHours * 60 * 60 * 1000).toISOString();
   const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
+  const withSubscriber = await supabase
     .from("video_snapshots")
-    .select("id, video_id, view_count, like_count, comment_count, captured_at")
+    .select(VIDEO_SNAPSHOT_SELECT_WITH_SUBSCRIBER)
     .eq("video_id", videoId)
     .gte("captured_at", since)
     .order("captured_at", { ascending: true });
 
-  if (error) {
-    throw new Error(`video_snapshots range fetch failed: ${error.message}`);
+  if (
+    withSubscriber.error &&
+    isMissingSubscriberCountColumnError(withSubscriber.error)
+  ) {
+    const withoutSubscriber = await supabase
+      .from("video_snapshots")
+      .select(VIDEO_SNAPSHOT_SELECT_WITHOUT_SUBSCRIBER)
+      .eq("video_id", videoId)
+      .gte("captured_at", since)
+      .order("captured_at", { ascending: true });
+
+    if (withoutSubscriber.error) {
+      throw new Error(
+        `video_snapshots range fetch failed: ${withoutSubscriber.error.message}`,
+      );
+    }
+
+    return (withoutSubscriber.data ?? []).map((row) => withNullSubscriberCount(row));
   }
 
-  return (data ?? []) as VideoSnapshotRow[];
+  if (withSubscriber.error) {
+    throw new Error(`video_snapshots range fetch failed: ${withSubscriber.error.message}`);
+  }
+
+  return (withSubscriber.data ?? []) as VideoSnapshotRow[];
 }
 
 export async function fetchSnapshotsForVideos(
@@ -648,20 +847,39 @@ export async function fetchSnapshotsForVideos(
   }
 
   const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
+  const withSubscriber = await supabase
     .from("video_snapshots")
-    .select("id, video_id, view_count, like_count, comment_count, captured_at")
+    .select(VIDEO_SNAPSHOT_SELECT_WITH_SUBSCRIBER)
     .in("video_id", videoIds)
     .order("captured_at", { ascending: true });
 
-  if (error) {
-    throw new Error(`video_snapshots fetch failed: ${error.message}`);
+  let rows: VideoSnapshotRow[];
+
+  if (
+    withSubscriber.error &&
+    isMissingSubscriberCountColumnError(withSubscriber.error)
+  ) {
+    const withoutSubscriber = await supabase
+      .from("video_snapshots")
+      .select(VIDEO_SNAPSHOT_SELECT_WITHOUT_SUBSCRIBER)
+      .in("video_id", videoIds)
+      .order("captured_at", { ascending: true });
+
+    if (withoutSubscriber.error) {
+      throw new Error(`video_snapshots fetch failed: ${withoutSubscriber.error.message}`);
+    }
+
+    rows = (withoutSubscriber.data ?? []).map((row) => withNullSubscriberCount(row));
+  } else if (withSubscriber.error) {
+    throw new Error(`video_snapshots fetch failed: ${withSubscriber.error.message}`);
+  } else {
+    rows = (withSubscriber.data ?? []) as VideoSnapshotRow[];
   }
 
-  for (const row of data ?? []) {
-    const snapshots = result.get(row.video_id) ?? [];
-    snapshots.push(row as VideoSnapshotRow);
-    result.set(row.video_id, snapshots);
+  for (const snapshot of rows) {
+    const snapshots = result.get(snapshot.video_id) ?? [];
+    snapshots.push(snapshot);
+    result.set(snapshot.video_id, snapshots);
   }
 
   return result;

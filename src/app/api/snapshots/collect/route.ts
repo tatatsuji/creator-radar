@@ -1,9 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
+import { assertCronAuthorized } from "@/lib/cron/responses";
 import { collectVideoSnapshots } from "@/lib/snapshots/collect";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const unauthorized = assertCronAuthorized(request);
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       {

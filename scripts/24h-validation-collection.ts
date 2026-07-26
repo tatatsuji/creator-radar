@@ -38,6 +38,7 @@ function loadState(): CollectionState | null {
 }
 
 function saveState(state: CollectionState): void {
+  mkdirSync(logDir, { recursive: true });
   writeFileSync(statePath, JSON.stringify(state, null, 2));
 }
 

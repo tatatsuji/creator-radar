@@ -78,9 +78,15 @@ body {
 }
 
 .glass-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-card-hover);
   border-color: rgba(139, 92, 246, 0.25);
+}
+
+@media (hover: none) {
+  .glass-card:hover {
+    transform: none;
+  }
 }
 
 .glass-card--gold {
@@ -124,4 +130,21 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.4);
+}
+
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.scroll-tabs {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.scroll-tabs::-webkit-scrollbar {
+  display: none;
 }

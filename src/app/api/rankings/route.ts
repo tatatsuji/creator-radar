@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { parseRankingType } from "@/lib/home/rankingType";
+import { getRankingsPayload } from "@/lib/ranking/getRankingsPayload";
+import { parseRankingPeriod } from "@/lib/ranking/periods";
 import {
+  getAvailableGenreIds,
   getRankingErrorMessage,
-  getRankings,
 } from "@/lib/youtube/rankings";
-import { getSnapshotMetricsSummary } from "@/lib/ranking/snapshotMetrics";
-import type { GenreId, RankingPeriod } from "@/types";
+import type { GenreId } from "@/types";
 
-const PERIODS: RankingPeriod[] = ["24h", "3d", "7d"];
 const GENRES: GenreId[] = [
   "all",
   "entertainment",
@@ -20,14 +21,6 @@ const GENRES: GenreId[] = [
   "other",
 ];
 
-function parsePeriod(value: string | null): RankingPeriod {
-  if (value && PERIODS.includes(value as RankingPeriod)) {
-    return value as RankingPeriod;
-  }
-
-  return "24h";
-}
-
 function parseGenre(value: string | null): GenreId {
   if (value && GENRES.includes(value as GenreId)) {
     return value as GenreId;
@@ -37,23 +30,52 @@ function parseGenre(value: string | null): GenreId {
 }
 
 export async function GET(request: NextRequest) {
-  const period = parsePeriod(request.nextUrl.searchParams.get("period"));
-  const genre = parseGenre(request.nextUrl.searchParams.get("genre"));
+  const searchParams = request.nextUrl.searchParams;
+  const ranking = parseRankingType(
+    searchParams.get("ranking"),
+    searchParams.get("mode"),
+  );
+  const period = parseRankingPeriod(searchParams.get("period"));
+  const genre = parseGenre(searchParams.get("genre"));
+  const availableGenres = await getAvailableGenreIds();
 
-  try {
-    const videos = await getRankings(period, genre);
-
+  if (genre !== "all" && !availableGenres.includes(genre)) {
     return NextResponse.json({
+      ranking,
       period,
       genre,
-      videos,
+      videos: [],
+      availableGenres,
       updatedAt: new Date().toISOString(),
-      total: videos.length,
-      metricsSummary: getSnapshotMetricsSummary(videos),
+      total: 0,
+      metricsSummary: { measured: 0, estimated: 0 },
+      readiness: {
+        status: "ready",
+        eligibleCount: 0,
+        requiredCount: 0,
+        message: "",
+      },
+    });
+  }
+
+  try {
+    const payload = await getRankingsPayload(ranking, period, genre);
+
+    return NextResponse.json({
+      ranking: payload.ranking,
+      period,
+      genre,
+      videos: payload.videos,
+      availableGenres,
+      updatedAt: payload.updatedAt,
+      dataFreshnessAt: payload.dataFreshnessAt,
+      total: payload.videos.length,
+      metricsSummary: payload.metricsSummary,
+      readiness: payload.readiness,
     });
   } catch (error) {
     return NextResponse.json(
-      { error: getRankingErrorMessage(error) },
+      { error: getRankingErrorMessage(error), availableGenres },
       { status: 500 },
     );
   }

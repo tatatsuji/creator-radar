@@ -58,7 +58,7 @@ export const OBSERVABILITY_CONFIG = {
     maxResultsPerCategorySource: 25,
     mostPopularAllMaxResults: 50,
     mostPopularCategoryMaxResults: 25,
-    mostPopularRegisterLimit: 80,
+    mostPopularRegisterLimit: 130,
     shortsMaxResults: 25,
     liveMaxResults: 25,
     dbRemeasureLimit: 50,

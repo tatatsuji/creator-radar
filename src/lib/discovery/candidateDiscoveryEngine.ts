@@ -9,6 +9,10 @@ import {
 } from "@/lib/discovery/buzzCandidateRegistration";
 import { registerDbRemeasureCandidates } from "@/lib/discovery/dbRemeasureDiscovery";
 import {
+  pickGenresForCategoryFetch,
+  pickMostPopularFetches,
+} from "@/lib/discovery/categoryStrategy";
+import {
   finishDiscoveryRun,
   findRecentRunningDiscoveryRun,
   startDiscoveryRun,
@@ -20,7 +24,7 @@ import {
   fetchCategoryDiscoveryItems,
   fetchLiveDiscoveryItems,
   fetchMostPopularVideoItems,
-  fetchShortsDiscoveryItems,
+  fetchShortFormCandidateItems,
 } from "@/lib/youtube/candidateFetch";
 import { getRankingDiscoveryVideoItems } from "@/lib/youtube/rankings";
 import { mergeVideoItems } from "@/lib/youtube/filters";
@@ -76,19 +80,6 @@ function emptyRegisterResult(): RegisterBuzzCandidatesResult {
   };
 }
 
-function pickGenresForRun(runIndex: number): GenreId[] {
-  const genres = [...OBSERVABILITY_CONFIG.phase1Discovery.categoryGenres];
-  const batchSize = OBSERVABILITY_CONFIG.phase1Discovery.genresPerRun;
-  const start = (runIndex * batchSize) % genres.length;
-  const selected: GenreId[] = [];
-
-  for (let index = 0; index < batchSize; index += 1) {
-    selected.push(genres[(start + index) % genres.length]!);
-  }
-
-  return selected;
-}
-
 async function registerSourceBatch(input: {
   label: string;
   items: YouTubeVideoItem[];
@@ -131,7 +122,7 @@ export async function runCandidateDiscoveryEngine(
   const totalRegistered = emptyRegisterResult();
 
   try {
-    for (const genre of pickGenresForRun(runIndex)) {
+    for (const genre of pickGenresForCategoryFetch(runIndex)) {
       try {
         const items = await fetchCategoryDiscoveryItems({
           genre,
@@ -170,14 +161,14 @@ export async function runCandidateDiscoveryEngine(
 
     for (const [label, fetcher, sourceType, sourceKey, quotaCalls] of [
       [
-        "shorts",
+        "short_form",
         () =>
-          fetchShortsDiscoveryItems(
+          fetchShortFormCandidateItems(
             "24h",
             OBSERVABILITY_CONFIG.phase1Discovery.shortsMaxResults,
           ),
-        "shorts_search" as const,
-        buildSearchSourceKey("phase1:shorts:24h"),
+        "short_form_candidate" as const,
+        buildSearchSourceKey("phase1:short_form:24h"),
         1,
       ],
       [
@@ -189,7 +180,7 @@ export async function runCandidateDiscoveryEngine(
           ),
         "live_search" as const,
         buildSearchSourceKey("phase1:live:24h"),
-        1,
+        2,
       ],
     ] as const) {
       try {
@@ -247,25 +238,27 @@ export async function runCandidateDiscoveryEngine(
     }
 
     try {
-      const popularGenres = pickGenresForRun(runIndex);
-      const popularItems = mergeVideoItems(
-        ...(await Promise.all(
-          popularGenres.map((genre) =>
-            fetchMostPopularVideoItems(genre, 10).catch(() => []),
+      const popularPlans = pickMostPopularFetches(runIndex);
+      const popularBatches = await Promise.all(
+        popularPlans.map((plan) =>
+          fetchMostPopularVideoItems(plan.genre, plan.maxResults).catch(
+            () => [] as YouTubeVideoItem[],
           ),
-        )),
+        ),
       );
+      const popularItems = mergeVideoItems(...popularBatches);
+
       if (popularItems.length > 0) {
         totalFetched += popularItems.length;
         const report = await registerSourceBatch({
-          label: "most_popular:rotating",
+          label: "most_popular:tiered",
           items: popularItems,
           sourceType: "most_popular",
           sourceKey: buildMostPopularSourceKey("JP", "all"),
           period: "24h",
           genre: "all",
           quotaEstimate: estimateVideosListQuotaUnits(popularItems.length),
-          limit: 30,
+          limit: OBSERVABILITY_CONFIG.phase1Discovery.mostPopularRegisterLimit,
         });
         sources.push(report);
         youtubeQuotaEstimate += report.quotaEstimate;
@@ -297,6 +290,7 @@ export async function runCandidateDiscoveryEngine(
       youtubeQuotaEstimate,
       errorSummary: errors.length > 0 ? errors.slice(0, 5).join(" | ") : null,
       metadata: {
+        runIndex,
         sources: sources.map((source) => ({
           source: source.source,
           fetched: source.fetched,

@@ -154,7 +154,8 @@ export async function registerBuzzCandidatesFromYouTubeItems(
 
   const classificationOverride =
     context.classificationOverride ??
-    (context.sourceType === "shorts_search"
+    (context.sourceType === "shorts_search" ||
+    context.sourceType === "short_form_candidate"
       ? { forceShort: true }
       : context.sourceType === "live_search"
         ? { forceLive: true }

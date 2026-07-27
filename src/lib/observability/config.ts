@@ -34,6 +34,10 @@ export const OBSERVABILITY_CONFIG = {
   },
 
   phase1Discovery: {
+    /** Primary Phase1 success metric: Discovery Recall (see docs/discovery-recall.md). */
+    primaryMetric: "discovery_recall" as const,
+    /** Discovery cron interval — must match vercel.json discovery schedule (6h). */
+    discoveryRunIntervalMs: 6 * 60 * 60 * 1000,
     categoryGenres: [
       "entertainment",
       "music",
@@ -42,12 +46,23 @@ export const OBSERVABILITY_CONFIG = {
       "howto",
       "sports",
     ] as const satisfies readonly GenreId[],
+    /** Tiered category fetch strategy — see src/lib/discovery/categoryStrategy.ts */
+    categoryStrategy: {
+      everyRun: ["entertainment", "music", "game"] as const satisfies readonly GenreId[],
+      daily: ["news"] as const satisfies readonly GenreId[],
+      rotation: ["howto", "sports"] as const satisfies readonly GenreId[],
+      searchOnly: ["education"] as const satisfies readonly GenreId[],
+      runsPerDay: 4,
+    },
     genresPerRun: 3,
     maxResultsPerCategorySource: 25,
+    mostPopularAllMaxResults: 50,
+    mostPopularCategoryMaxResults: 25,
+    mostPopularRegisterLimit: 80,
     shortsMaxResults: 25,
     liveMaxResults: 25,
     dbRemeasureLimit: 50,
-    maxCandidatesPerRun: 200,
+    maxCandidatesPerRun: 250,
   },
 
   defaultNextCheckIntervalMs: 6 * 60 * 60 * 1000,
@@ -87,10 +102,12 @@ export const OBSERVABILITY_CONFIG = {
    */
   cronSchedules: {
     legacySnapshot: "0 0 * * *",
-    discovery: "0 6 * * *",
-    measurement: "0 12 * * *",
+    /** Vercel prod primary — every 6 hours UTC */
+    discovery: "0 */6 * * *",
+    measurement: "0 2 * * *",
+    /** GitHub Actions: dev Supabase measurement only; discovery disabled (Vercel is primary). */
     githubActionsMeasurement: "15 * * * *",
-    githubActionsDiscovery: "0 */6 * * *",
+    githubActionsDiscovery: "disabled",
   },
 
   health: {

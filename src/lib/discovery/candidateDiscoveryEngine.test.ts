@@ -35,6 +35,7 @@ vi.mock("@/lib/discovery/runsRepository", () => ({
 
 vi.mock("@/lib/youtube/candidateFetch", () => ({
   fetchCategoryDiscoveryItems: vi.fn().mockResolvedValue([]),
+  fetchShortFormCandidateItems: vi.fn().mockResolvedValue([]),
   fetchShortsDiscoveryItems: vi.fn().mockResolvedValue([]),
   fetchLiveDiscoveryItems: vi.fn().mockResolvedValue([]),
   fetchMostPopularVideoItems: vi.fn().mockResolvedValue([]),

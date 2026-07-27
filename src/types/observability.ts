@@ -42,6 +42,8 @@ export const DISCOVERY_SOURCE_TYPES = [
   "category_search",
   "most_popular",
   "shorts_search",
+  /** Short-form candidates via videoDuration=short — not guaranteed to be vertical Shorts. */
+  "short_form_candidate",
   "live_search",
   "db_remeasure",
   "related",

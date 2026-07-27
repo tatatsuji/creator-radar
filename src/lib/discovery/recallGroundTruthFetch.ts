@@ -1,3 +1,9 @@
+/**
+ * Evaluation-only YouTube fetch helpers for Discovery Recall ground truth.
+ *
+ * Intentionally separate from production discovery fetchers (candidateFetch.ts)
+ * to prevent evaluation leak — see docs/evaluation-leak-prevention.md.
+ */
 import { getPublishedAfter } from "@/lib/ranking/periods";
 import {
   genreSupportsPopularChart,
@@ -5,10 +11,8 @@ import {
 } from "@/lib/youtube/categories";
 import { youtubeFetch } from "@/lib/youtube/client";
 import { isChartNotFoundError } from "@/lib/youtube/errors";
-import {
-  filterByGenreCategory,
-  mergeVideoItems,
-} from "@/lib/youtube/filters";
+import { mergeVideoItems } from "@/lib/youtube/filters";
+import { parseCount } from "@/lib/youtube/helpers";
 import type {
   YouTubeSearchResponse,
   YouTubeVideoItem,
@@ -16,15 +20,16 @@ import type {
 } from "@/lib/youtube/types";
 import type { GenreId, RankingPeriod } from "@/types";
 
-const MAX_RESULTS = 50;
+const EVAL_REGION = "JP";
 
-async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideoItem[]> {
+async function evalFetchVideoDetails(
+  videoIds: string[],
+): Promise<YouTubeVideoItem[]> {
   if (videoIds.length === 0) {
     return [];
   }
 
   const items: YouTubeVideoItem[] = [];
-
   for (let index = 0; index < videoIds.length; index += 50) {
     const batch = videoIds.slice(index, index + 50);
     const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
@@ -34,25 +39,23 @@ async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideoItem[]
     });
     items.push(...response.items);
   }
-
   return items;
 }
 
-export async function searchVideoItems(input: {
+export async function evalSearchVideos(input: {
   period: RankingPeriod;
   genre: GenreId;
   order: "viewCount" | "date" | "relevance";
   maxResults?: number;
   extraParams?: Record<string, string>;
 }): Promise<YouTubeVideoItem[]> {
-  const publishedAfter = getPublishedAfter(input.period);
   const params: Record<string, string> = {
     part: "snippet",
     type: "video",
-    regionCode: "JP",
+    regionCode: EVAL_REGION,
     order: input.order,
-    publishedAfter,
-    maxResults: String(input.maxResults ?? MAX_RESULTS),
+    publishedAfter: getPublishedAfter(input.period),
+    maxResults: String(input.maxResults ?? 50),
     ...input.extraParams,
   };
 
@@ -66,16 +69,12 @@ export async function searchVideoItems(input: {
     .map((item) => item.id.videoId)
     .filter((id): id is string => Boolean(id));
 
-  if (videoIds.length === 0) {
-    return [];
-  }
-
-  return fetchVideoDetails(videoIds);
+  return evalFetchVideoDetails(videoIds);
 }
 
-export async function fetchMostPopularVideoItems(
+export async function evalFetchMostPopular(
   genre: GenreId,
-  maxResults = MAX_RESULTS,
+  maxResults = 50,
 ): Promise<YouTubeVideoItem[]> {
   if (!genreSupportsPopularChart(genre)) {
     return [];
@@ -84,7 +83,7 @@ export async function fetchMostPopularVideoItems(
   const params: Record<string, string> = {
     part: "snippet,statistics,contentDetails",
     chart: "mostPopular",
-    regionCode: "JP",
+    regionCode: EVAL_REGION,
     maxResults: String(maxResults),
   };
 
@@ -104,44 +103,44 @@ export async function fetchMostPopularVideoItems(
   }
 }
 
-export async function fetchCategoryDiscoveryItems(input: {
-  genre: GenreId;
-  period: RankingPeriod;
-  maxResultsPerSource: number;
-}): Promise<YouTubeVideoItem[]> {
-  const [byViews, byDate, popular] = await Promise.all([
-    searchVideoItems({
-      period: input.period,
-      genre: input.genre,
-      order: "viewCount",
-      maxResults: input.maxResultsPerSource,
-    }),
-    searchVideoItems({
-      period: input.period,
-      genre: input.genre,
-      order: "date",
-      maxResults: input.maxResultsPerSource,
-    }),
-    fetchMostPopularVideoItems(input.genre, input.maxResultsPerSource),
-  ]);
+export async function evalFetchChannelSubscribers(
+  channelIds: string[],
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (channelIds.length === 0) {
+    return result;
+  }
 
-  const merged = mergeVideoItems(byViews, byDate, popular);
-  return filterByGenreCategory(merged, input.genre).slice(
-    0,
-    input.maxResultsPerSource,
-  );
+  for (let index = 0; index < channelIds.length; index += 50) {
+    const batch = channelIds.slice(index, index + 50);
+    const response = await youtubeFetch<{
+      items: Array<{
+        id: string;
+        statistics?: { subscriberCount?: string; hiddenSubscriberCount?: boolean };
+      }>;
+    }>("channels", {
+      part: "statistics",
+      id: batch.join(","),
+      maxResults: String(batch.length),
+    });
+
+    for (const item of response.items) {
+      if (item.statistics?.hiddenSubscriberCount) {
+        result.set(item.id, Number.MAX_SAFE_INTEGER);
+      } else {
+        result.set(item.id, parseCount(item.statistics?.subscriberCount));
+      }
+    }
+  }
+
+  return result;
 }
 
-/**
- * Short-form candidates via search.list videoDuration=short.
- * This returns videos ≤4 minutes, NOT exclusively vertical YouTube Shorts.
- * @see docs/discovery-recall.md#short-form-candidates
- */
-export async function fetchShortFormCandidateItems(
+export async function evalFetchShortFormCandidates(
   period: RankingPeriod,
   maxResults: number,
 ): Promise<YouTubeVideoItem[]> {
-  return searchVideoItems({
+  return evalSearchVideos({
     period,
     genre: "all",
     order: "viewCount",
@@ -150,43 +149,25 @@ export async function fetchShortFormCandidateItems(
   });
 }
 
-/** @deprecated Use fetchShortFormCandidateItems */
-export async function fetchShortsDiscoveryItems(
-  period: RankingPeriod,
+export async function evalFetchLiveCandidates(
   maxResults: number,
 ): Promise<YouTubeVideoItem[]> {
-  return fetchShortFormCandidateItems(period, maxResults);
-}
-
-export async function fetchLiveDiscoveryItems(
-  period: RankingPeriod,
-  maxResults: number,
-): Promise<YouTubeVideoItem[]> {
-  const half = Math.ceil(maxResults / 2);
-  const [liveNow, recentCompleted] = await Promise.all([
-    searchVideoItems({
-      period,
+  const [live, completed] = await Promise.all([
+    evalSearchVideos({
+      period: "24h",
       genre: "all",
       order: "viewCount",
-      maxResults: half,
+      maxResults: Math.ceil(maxResults / 2),
       extraParams: { eventType: "live" },
     }),
-    searchVideoItems({
+    evalSearchVideos({
       period: "3d",
       genre: "all",
       order: "viewCount",
-      maxResults: half,
+      maxResults: Math.ceil(maxResults / 2),
       extraParams: { eventType: "completed" },
     }),
   ]);
 
-  return mergeVideoItems(liveNow, recentCompleted).slice(0, maxResults);
-}
-
-export function estimateSearchQuotaUnits(searchCalls: number): number {
-  return searchCalls * 100;
-}
-
-export function estimateVideosListQuotaUnits(videoCount: number): number {
-  return Math.ceil(videoCount / 50);
+  return mergeVideoItems(live, completed).slice(0, maxResults);
 }

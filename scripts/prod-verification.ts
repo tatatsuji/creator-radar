@@ -95,11 +95,12 @@ async function triggerCron(
     method: "POST",
     headers: { Authorization: `Bearer ${cronSecret}` },
   });
-  let body: unknown;
+  const text = await response.text();
+  let body: unknown = text;
   try {
-    body = await response.json();
+    body = JSON.parse(text);
   } catch {
-    body = await response.text();
+    // keep text body
   }
   return { status: response.status, body };
 }
@@ -132,7 +133,7 @@ async function auditDb(supabase: ReturnType<typeof createClient>, sinceIso: stri
   const { data: videos, error: vErr } = await supabase
     .from("videos")
     .select(
-      "youtube_video_id,title,channel_id,published_at,duration_seconds,thumbnail_url,view_count,content_features,category_id,is_short,is_live,first_discovered_at,last_seen_at",
+      "youtube_video_id,title,channel_id,published_at,duration_seconds,thumbnail_url,category_id,is_short,is_live,first_discovered_at,last_seen_at",
     )
     .eq("is_active", true)
     .gte("first_discovered_at", sinceIso)
@@ -197,21 +198,26 @@ async function auditDb(supabase: ReturnType<typeof createClient>, sinceIso: stri
     if (!row.published_at) nullCounts.published_at += 1;
     if (row.duration_seconds == null) nullCounts.duration_seconds += 1;
     if (!row.thumbnail_url) nullCounts.thumbnail_url += 1;
-    if (row.view_count == null) nullCounts.view_count += 1;
-    if (row.content_features == null) nullCounts.content_features += 1;
+    nullCounts.view_count += 1;
+    nullCounts.content_features += 1;
     if (!row.first_discovered_at) nullCounts.first_discovered_at += 1;
   }
 
-  const { count: channelSubNull } = await supabase
-    .from("channels")
-    .select("*", { count: "exact", head: true })
-    .is("subscriber_count", null);
+  let channelSubNull: number | null = null;
+  const subProbe = await supabase.from("channels").select("subscriber_count").limit(1);
+  if (!subProbe.error) {
+    const { count } = await supabase
+      .from("channels")
+      .select("*", { count: "exact", head: true })
+      .is("subscriber_count", null);
+    channelSubNull = count ?? 0;
+  }
 
   const scheduleVideoIds = new Set((schedules ?? []).map((r) => r.video_id));
   const unregistered = discoveredVideoIds.filter((id) => !scheduleVideoIds.has(id));
 
   // trace one video
-  let traceVideoId = discoveredVideoIds[0] ?? null;
+  const traceVideoId = discoveredVideoIds[0] ?? null;
   let trace: Record<string, unknown> | null = null;
   if (traceVideoId) {
     const { data: vRow } = await supabase

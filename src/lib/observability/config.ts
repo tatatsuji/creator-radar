@@ -97,17 +97,16 @@ export const OBSERVABILITY_CONFIG = {
   },
 
   /**
-   * Vercel Cron schedules (vercel.json).
-   * Measurement runs at :15 to reduce overlap with legacy snapshot (:00).
+   * Cron schedules.
+   * Discovery primary: GitHub Actions every 6h (Vercel Hobby cannot run sub-daily crons).
+   * Measurement: Vercel daily 02:00 UTC + GHA hourly for freshness.
    */
   cronSchedules: {
     legacySnapshot: "0 0 * * *",
-    /** Vercel prod primary — every 6 hours UTC */
-    discovery: "0 */6 * * *",
-    measurement: "0 2 * * *",
-    /** GitHub Actions: dev Supabase measurement only; discovery disabled (Vercel is primary). */
+    vercelDiscovery: "disabled",
+    vercelMeasurement: "0 2 * * *",
     githubActionsMeasurement: "15 * * * *",
-    githubActionsDiscovery: "disabled",
+    githubActionsDiscovery: "0 */6 * * *",
   },
 
   health: {

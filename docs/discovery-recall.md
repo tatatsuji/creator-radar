@@ -84,5 +84,6 @@ mostPopular は **JP 総合50本を毎 run** + Tier A/B/C カテゴリ chart。
 
 ## Cron
 
-- **本番:** Vercel Cron `0 */6 * * *`（6時間毎）
-- **GitHub Actions:** measurement のみ（discovery は無効化）
+- **Discovery（主系統）:** GitHub Actions `0 */6 * * *`（6時間毎）— Vercel Hobby は sub-daily cron 非対応
+- **Measurement:** Vercel `0 2 * * *` + GitHub Actions hourly
+- **Vercel discovery cron:** 無効化（二重実行防止）

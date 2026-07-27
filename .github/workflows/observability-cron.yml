@@ -2,8 +2,10 @@ name: Creator Radar Observability Cron
 
 on:
   schedule:
-    # Measurement: hourly at :15 UTC (dev Supabase only)
+    # Measurement: hourly at :15 UTC
     - cron: "15 * * * *"
+    # Discovery: every 6 hours (primary — Vercel Hobby cannot run sub-daily crons)
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -22,12 +24,27 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - name: Run measurement against dev Supabase
+      - name: Run measurement
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: npm run cron:measurement
 
-  # Discovery cron is disabled here — Vercel Cron (vercel.json, every 6h) is the production primary.
-  # Use workflow_dispatch + npm run cron:discovery locally for dev/fallback only.
+  discovery:
+    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Run discovery (primary 6h schedule)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: npm run cron:discovery

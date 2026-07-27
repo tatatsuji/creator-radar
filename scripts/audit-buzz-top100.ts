@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,9 +63,7 @@ async function main(): Promise<void> {
   }
   const channelsOverCap = [...channelCounts.entries()].filter(([, count]) => count > 5);
 
-  console.log(
-    JSON.stringify(
-      {
+  const payload = {
         audit: "buzz-top100",
         source,
         period,
@@ -77,6 +75,7 @@ async function main(): Promise<void> {
         meetsIdealTarget: top100.length >= MAX_BUZZ_RANKING_RESULTS,
         measuredRate: Number(audit.measuredRate.toFixed(4)),
         measuredRateGoalMet: audit.measuredRate >= 0.8,
+        estimatedRate: Number((1 - audit.measuredRate).toFixed(4)),
         uniqueChannelCount: audit.uniqueChannelCount,
         uniqueChannelGoalMet: audit.uniqueChannelCount >= 50,
         metricsSummary: summary,
@@ -85,6 +84,7 @@ async function main(): Promise<void> {
         categoryDistribution: audit.categoryDistribution,
         classificationDistribution: audit.classificationDistribution,
         channelsOverCap,
+        maxPerChannel: Math.max(0, ...channelCounts.values()),
         top100VideoIds: top100.map((video) => video.id),
         completionGoals: {
           displayRangeMet:
@@ -95,11 +95,13 @@ async function main(): Promise<void> {
           uniqueChannels50Plus: audit.uniqueChannelCount >= 50,
           scoreZeroDisplay: audit.scoreZeroCount === 0,
         },
-      },
-      null,
-      2,
-    ),
+      };
+
+  writeFileSync(
+    resolve(projectRoot, ".validation/buzz-top100-audit.json"),
+    JSON.stringify(payload, null, 2),
   );
+  console.log(JSON.stringify(payload, null, 2));
 }
 
 main().catch((error) => {

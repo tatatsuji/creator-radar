@@ -1,0 +1,140 @@
+name: Phase1 Verification
+
+# Operational verification for Phase1 completion.
+# Does NOT run discovery (observability-cron.yml owns 6h discovery — no Vercel overlap).
+
+on:
+  schedule:
+    # 07:10 UTC daily = 00:10 Pacific — after YouTube quota reset (midnight PT)
+    - cron: "10 7 * * *"
+    # 18:00 UTC daily — speed sample check (post-6h-cron window)
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Verification job to run"
+        required: true
+        default: "full-report"
+        type: choice
+        options:
+          - finalize-recall
+          - remasure-speed
+          - buzz-audit
+          - full-report
+
+concurrency:
+  group: phase1-verification
+  cancel-in-progress: false
+
+env:
+  TZ: UTC
+  PHASE1_6H_CRON_START_ISO: "2026-07-27T18:00:00.000Z"
+
+jobs:
+  finalize-recall:
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'finalize-recall' || github.event.inputs.job == 'full-report')) ||
+      (github.event_name == 'schedule' && github.event.schedule == '10 7 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Finalize recall (skip discovery — observability-cron owns it)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          PHASE1_6H_CRON_START_ISO: ${{ env.PHASE1_6H_CRON_START_ISO }}
+        run: npm run phase1:finalize-recall -- --skip-discovery
+      - name: Upload recall artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-recall-${{ github.run_id }}
+          path: |
+            .validation/phase1-recall-finalize.json
+            .validation/discovery-recall-report-new-gt.json
+          if-no-files-found: ignore
+
+  remasure-speed:
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'remasure-speed' || github.event.inputs.job == 'full-report')) ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 18 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Post-6h-cron speed verification
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PHASE1_6H_CRON_START_ISO: ${{ env.PHASE1_6H_CRON_START_ISO }}
+        run: npm run phase1:remasure-speed
+      - name: Upload speed artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-speed-${{ github.run_id }}
+          path: .validation/phase1-speed-remasure.json
+          if-no-files-found: ignore
+
+  buzz-audit:
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'buzz-audit' || github.event.inputs.job == 'full-report'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Buzz ranking audit
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: npm run audit:buzz-top100
+      - name: Upload buzz audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-buzz-${{ github.run_id }}
+          path: .validation/buzz-top100-audit.json
+          if-no-files-found: ignore
+
+  final-report:
+    needs: [finalize-recall, remasure-speed, buzz-audit]
+    if: |
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.job == 'full-report'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Generate Phase1 final judgment
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run phase1:final-report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase1-final-report-${{ github.run_id }}
+          path: .validation/phase1-final-judgment.json

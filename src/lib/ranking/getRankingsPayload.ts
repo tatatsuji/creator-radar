@@ -1,7 +1,6 @@
 import { buildRankings } from "@/lib/ranking/buildRankings";
 import { resolveLatestSnapshotCapturedAt } from "@/lib/ranking/snapshotMetrics";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
-import { getRankingCandidates } from "@/lib/youtube/rankings";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import type { GenreId, RankingPeriod, Video } from "@/types";
 import type { RankingReadiness, RankingType } from "@/types/ranking";
@@ -23,16 +22,11 @@ export async function getRankingsPayload(
   const built = await buildRankings(ranking, period, genre);
   let dataFreshnessAt: string | null = null;
 
-  if (isSupabaseConfigured()) {
-    const candidateIds =
-      built.videos.length > 0
-        ? built.videos.map((video) => video.id)
-        : (await getRankingCandidates(period, genre)).map((video) => video.id);
-
-    if (candidateIds.length > 0) {
-      const snapshotsByVideo = await fetchSnapshotsForVideos(candidateIds);
-      dataFreshnessAt = resolveLatestSnapshotCapturedAt(snapshotsByVideo);
-    }
+  if (isSupabaseConfigured() && built.videos.length > 0) {
+    const snapshotsByVideo = await fetchSnapshotsForVideos(
+      built.videos.map((video) => video.id),
+    );
+    dataFreshnessAt = resolveLatestSnapshotCapturedAt(snapshotsByVideo);
   }
 
   return {

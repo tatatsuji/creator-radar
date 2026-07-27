@@ -9,7 +9,7 @@ import type { VideoSnapshotRow } from "@/types/database";
 describe("coverage display", () => {
   it("formats measured and estimated counts", () => {
     expect(formatMetricsCoverageLine({ measured: 3, estimated: 12, total: 15 })).toBe(
-      "実測 3件 · 推定 12件",
+      "実測 3件 · 推定 12件 · カバレッジ 20%",
     );
   });
 });

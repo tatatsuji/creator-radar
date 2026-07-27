@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { runWatchlistDiscovery } from "@/lib/discovery/runWatchlistDiscovery";
+import { runDiscoveryCron } from "@/lib/discovery/runDiscoveryCron";
 import { assertCronAuthorized } from "@/lib/cron/responses";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
@@ -21,11 +21,8 @@ async function handleDiscoveryCron(request: NextRequest) {
   }
 
   try {
-    const result = await runWatchlistDiscovery();
-    return NextResponse.json({
-      ...result,
-      collectedAt: new Date().toISOString(),
-    });
+    const result = await runDiscoveryCron();
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
       {

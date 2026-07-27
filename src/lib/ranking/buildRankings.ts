@@ -7,14 +7,15 @@ import { countPotentialEligible } from "@/lib/ranking/potentialScore";
 import {
   RANKING_ACCUMULATING_MESSAGES,
 } from "@/lib/ranking/rankingMeta";
+import { getBuzzRankingFallbackCandidates } from "@/lib/ranking/buzzRankingFallback";
 import { getSnapshotMetricsSummary } from "@/lib/ranking/snapshotMetrics";
 import {
   enrichVideosWithSnapshots,
+  getBuzzRankingCandidatesFromDb,
   getMeasuredPromotionVideos,
   getMeasuredRankingCandidates,
   type SnapshotEnrichedVideo,
 } from "@/lib/ranking/snapshotRankingBase";
-import { getRankingCandidates } from "@/lib/youtube/rankings";
 import type { GenreId, RankingPeriod, Video } from "@/types";
 import {
   MIN_MEASURED_VIDEOS_FOR_SNAPSHOT_RANKING,
@@ -27,6 +28,7 @@ export interface BuiltRankingsResult {
   videos: Video[];
   readiness: RankingReadiness;
   metricsSummary: { measured: number; estimated: number };
+  usedYouTubeFallback?: boolean;
 }
 
 function countEligibleVideos(
@@ -84,13 +86,22 @@ export async function buildRankings(
   genre: GenreId,
 ): Promise<BuiltRankingsResult> {
   if (ranking === "buzz") {
-    const candidates = await getRankingCandidates(period, genre);
+    const dbCandidates = await getBuzzRankingCandidatesFromDb(period, genre);
+    let usedYouTubeFallback = false;
+    let candidates = dbCandidates;
+
+    if (candidates.length === 0) {
+      usedYouTubeFallback = true;
+      candidates = await getBuzzRankingFallbackCandidates(period, genre);
+    }
+
     const videos = await buildBuzzRankingVideos(candidates, period);
     return {
       ranking,
       videos,
       readiness: assessReadiness(ranking, [], candidates.length),
       metricsSummary: getSnapshotMetricsSummary(videos),
+      usedYouTubeFallback,
     };
   }
 

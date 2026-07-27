@@ -25,5 +25,7 @@ export function formatMetricsCoverageLine(
     return "実測データ: 対象動画なし";
   }
 
-  return `実測 ${summary.measured}件 · 推定 ${summary.estimated}件`;
+  const coveragePercent = Math.round((summary.measured / summary.total) * 100);
+
+  return `実測 ${summary.measured}件 · 推定 ${summary.estimated}件 · カバレッジ ${coveragePercent}%`;
 }

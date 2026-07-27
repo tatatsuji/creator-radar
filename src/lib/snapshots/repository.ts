@@ -254,6 +254,39 @@ export async function upsertChannelRecord(
   }
 }
 
+export async function findExistingVideoIds(
+  youtubeVideoIds: string[],
+): Promise<Set<string>> {
+  if (youtubeVideoIds.length === 0) {
+    return new Set();
+  }
+
+  if (!isSupabaseConfigured()) {
+    return new Set();
+  }
+
+  const supabase = createSupabaseServerClient();
+  const existing = new Set<string>();
+
+  for (let index = 0; index < youtubeVideoIds.length; index += 100) {
+    const batch = youtubeVideoIds.slice(index, index + 100);
+    const { data, error } = await supabase
+      .from("videos")
+      .select("youtube_video_id")
+      .in("youtube_video_id", batch);
+
+    if (error) {
+      throw new Error(`videos lookup failed: ${error.message}`);
+    }
+
+    for (const row of data ?? []) {
+      existing.add(row.youtube_video_id as string);
+    }
+  }
+
+  return existing;
+}
+
 export async function upsertVideoRecord(input: UpsertVideoInput): Promise<void> {
   const supabase = createSupabaseServerClient();
 

@@ -1,10 +1,10 @@
-import type { GenreId, RankingPeriod, Video } from "@/types";
-
+import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
 import {
   buildVideoMetrics,
   finalizeRankedVideos,
 } from "@/lib/ranking/metrics";
 import { getPublishedAfter, RANKING_PERIODS } from "@/lib/ranking/periods";
+import type { GenreId, RankingPeriod, Video } from "@/types";
 import {
   genreSupportsPopularChart,
   getYouTubeCategoryId,
@@ -319,6 +319,21 @@ export async function getAvailableGenreIds(): Promise<GenreId[]> {
   };
 
   return available;
+}
+
+export async function getRankingDiscoveryVideoItems(
+  maxItems: number = OBSERVABILITY_CONFIG.batchSize.rankingSnapshotInsert,
+): Promise<YouTubeVideoItem[]> {
+  const videosById = new Map<string, YouTubeVideoItem>();
+
+  for (const period of OBSERVABILITY_CONFIG.rankingDiscovery.periods) {
+    const items = await getVideoItemsForPeriod(period, "all");
+    for (const item of items) {
+      videosById.set(item.id, item);
+    }
+  }
+
+  return [...videosById.values()].slice(0, maxItems);
 }
 
 export async function getCollectTargetVideoItems(): Promise<YouTubeVideoItem[]> {

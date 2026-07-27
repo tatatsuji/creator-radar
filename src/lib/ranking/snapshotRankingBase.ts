@@ -7,6 +7,8 @@ import {
   getYouTubeCategoryId,
   KNOWN_CATEGORY_IDS,
 } from "@/lib/youtube/categories";
+import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
+import { getPublishedAfter } from "@/lib/ranking/periods";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
 import {
   createSupabaseServerClient,
@@ -130,9 +132,52 @@ function mapVideoRowToCandidate(
       viewVelocity: 0,
       viewsPerSubscriber: 0,
       rankingScore: 0,
-      metricsSource: "measured",
+      metricsSource: "estimated",
     },
   };
+}
+
+export async function getBuzzRankingCandidatesFromDb(
+  period: RankingPeriod,
+  genre: GenreId,
+): Promise<Video[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  const supabase = createSupabaseServerClient();
+  const publishedAfter = getPublishedAfter(period);
+
+  const { data: videoRows, error } = await supabase
+    .from("videos")
+    .select("*")
+    .eq("is_active", true)
+    .gte("published_at", publishedAfter)
+    .order("last_seen_at", { ascending: false })
+    .limit(OBSERVABILITY_CONFIG.batchSize.rankingSnapshotInsert);
+
+  if (error) {
+    throw new Error(`videos lookup failed: ${error.message}`);
+  }
+
+  const rows = (videoRows ?? []) as VideoRow[];
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const snapshotsByVideo = await fetchSnapshotsForVideos(
+    rows.map((row) => row.youtube_video_id),
+  );
+
+  return rows
+    .filter((row) => matchesGenre(row.category_id, genre))
+    .map((row) =>
+      mapVideoRowToCandidate(
+        row,
+        snapshotsByVideo.get(row.youtube_video_id)?.at(-1),
+        period,
+      ),
+    );
 }
 
 export async function getMeasuredRankingCandidates(

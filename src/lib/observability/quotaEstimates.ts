@@ -9,6 +9,7 @@ export const QUOTA_UNITS = {
   videosListPerBatch: 1,
   channelsListPerBatch: 1,
   playlistItemsList: 1,
+  searchList: 100,
   discoveryPerChannelWithVideos: 3,
   discoveryPerChannelWithoutVideos: 2,
   legacyRankingFetch: 12,
@@ -71,6 +72,18 @@ export function estimateQuotaScenario(
     totalUnitsPerDay,
     withinDailyQuota: totalUnitsPerDay <= YOUTUBE_DAILY_QUOTA_UNITS,
   };
+}
+
+export function estimateRankingDiscoveryQuotaUnits(input: {
+  videoCount: number;
+  channelCount: number;
+  searchCalls: number;
+}): number {
+  return (
+    input.searchCalls * QUOTA_UNITS.searchList +
+    Math.ceil(input.videoCount / 50) * QUOTA_UNITS.videosListPerBatch +
+    Math.ceil(input.channelCount / 50) * QUOTA_UNITS.channelsListPerBatch
+  );
 }
 
 export function buildDefaultQuotaScenarios(): QuotaScenarioEstimate[] {

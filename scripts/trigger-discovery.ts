@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import { runWatchlistDiscovery } from "../src/lib/discovery/runWatchlistDiscovery";
+import { runDiscoveryCron } from "../src/lib/discovery/runDiscoveryCron";
 
 async function main(): Promise<void> {
-  const result = await runWatchlistDiscovery();
+  const result = await runDiscoveryCron();
   console.log(JSON.stringify(result, null, 2));
-  if (result.status === "failed") {
+  if (result.watchlist.status === "failed" && !result.ranking) {
     process.exit(1);
   }
 }

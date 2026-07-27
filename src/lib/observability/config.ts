@@ -26,7 +26,12 @@ export const OBSERVABILITY_CONFIG = {
   scoreVersion: SCORE_VERSION satisfies ScoreVersion,
   discoveryAlgorithmVersion:
     DISCOVERY_ALGORITHM_VERSION satisfies DiscoveryAlgorithmVersion,
-  rankingSource: "legacy" as const,
+  rankingSource: "observability" as const,
+
+  rankingDiscovery: {
+    periods: ["24h", "7d"] as const satisfies readonly RankingPeriod[],
+    searchCallsPerRun: 2,
+  },
 
   defaultNextCheckIntervalMs: 6 * 60 * 60 * 1000,
   defaultNextMeasurementIntervalMs: 60 * 60 * 1000,

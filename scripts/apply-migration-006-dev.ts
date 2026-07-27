@@ -90,7 +90,8 @@ async function applyMigrationWithPostgres(
 }
 
 async function main(): Promise<void> {
-  const env = loadEnvFile(resolve(projectRoot, ".env.local"));
+  const fileEnv = loadEnvFile(resolve(projectRoot, ".env.local"));
+  const env = { ...fileEnv, ...process.env } as Record<string, string>;
   const supabase = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.SUPABASE_SERVICE_ROLE_KEY,

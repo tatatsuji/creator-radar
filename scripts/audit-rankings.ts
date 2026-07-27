@@ -89,7 +89,7 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log("\n=== Overlap rates (top 10) ===");
+  console.log("\n=== Overlap rates (top 100 for buzz, top 10 for others) ===");
   const pairs: Array<[string, string]> = [
     ["buzz", "early_rise"],
     ["buzz", "launch_speed"],
@@ -100,8 +100,10 @@ async function main(): Promise<void> {
   ];
 
   for (const [a, b] of pairs) {
-    const idsA = results.get(a)!.videos.slice(0, 10).map((v) => v.id);
-    const idsB = results.get(b)!.videos.slice(0, 10).map((v) => v.id);
+    const sliceA = a === "buzz" ? 100 : 10;
+    const sliceB = b === "buzz" ? 100 : 10;
+    const idsA = results.get(a)!.videos.slice(0, sliceA).map((v) => v.id);
+    const idsB = results.get(b)!.videos.slice(0, sliceB).map((v) => v.id);
     console.log(`${a} vs ${b}: ${(overlapRate(idsA, idsB) * 100).toFixed(0)}%`);
   }
 

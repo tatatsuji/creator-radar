@@ -41,6 +41,9 @@ export const DISCOVERY_SOURCE_TYPES = [
   "search",
   "category_search",
   "most_popular",
+  "shorts_search",
+  "live_search",
+  "db_remeasure",
   "related",
   "manual",
 ] as const;

@@ -11,6 +11,7 @@ export interface VideoSnapshotRow {
 export interface VideoRow {
   youtube_video_id: string;
   title: string | null;
+  description: string | null;
   channel_id: string | null;
   channel_name: string | null;
   thumbnail_url: string | null;
@@ -24,6 +25,11 @@ export interface VideoRow {
   is_topic_content: boolean | null;
   first_discovered_at: string | null;
   last_observed_at: string | null;
+  view_count: number | null;
+  like_count: number | null;
+  comment_count: number | null;
+  tags: string[] | null;
+  content_features: import("@/lib/discovery/videoFeatures").VideoContentFeatures | null;
   updated_at: string;
 }
 
@@ -32,6 +38,7 @@ export interface ChannelRow {
   name: string | null;
   thumbnail_url: string | null;
   subscriber_count_hidden: boolean;
+  subscriber_count: number | null;
   channel_type: string | null;
   market_relevance: number | null;
   country: string | null;
@@ -74,17 +81,28 @@ export interface UpsertChannelInput {
   name: string;
   thumbnailUrl?: string;
   subscriberCountHidden: boolean;
+  subscriberCount?: number | null;
 }
 
 export interface UpsertVideoInput {
   youtubeVideoId: string;
   title: string;
+  description?: string | null;
   channelId: string;
   channelName: string;
   thumbnailUrl: string;
   publishedAt: string;
   categoryId?: string;
   lastSeenAt: string;
+  durationSeconds?: number | null;
+  isShort?: boolean | null;
+  isLive?: boolean | null;
+  isTopicContent?: boolean | null;
+  viewCount?: number | null;
+  likeCount?: number | null;
+  commentCount?: number | null;
+  tags?: string[] | null;
+  contentFeatures?: import("@/lib/discovery/videoFeatures").VideoContentFeatures | null;
 }
 
 export interface InsertSnapshotInput {

@@ -29,8 +29,12 @@
     "verify:automation": "tsx --env-file=.env.local scripts/verify-automation.ts",
     "verify:admin-secret": "tsx --env-file=.env.local scripts/verify-admin-secret.ts",
     "audit:buzz-registration": "tsx --env-file=.env.local scripts/audit-buzz-registration.ts",
+    "audit:buzz-top100": "tsx --env-file=.env.local scripts/audit-buzz-top100.ts",
+    "audit:phase1-discovery": "tsx --env-file=.env.local scripts/audit-phase1-discovery.ts",
+    "verify:prod": "tsx --env-file=.env.local scripts/prod-verification.ts",
     "db:apply:004-dev": "tsx --env-file=.env.local scripts/apply-migration-004-dev.ts",
-    "db:apply:005-dev": "tsx --env-file=.env.local scripts/apply-migration-005-dev.ts"
+    "db:apply:005-dev": "tsx --env-file=.env.local scripts/apply-migration-005-dev.ts",
+    "db:apply:006-dev": "tsx --env-file=.env.local scripts/apply-migration-006-dev.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

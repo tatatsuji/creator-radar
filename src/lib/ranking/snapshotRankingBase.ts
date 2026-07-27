@@ -7,7 +7,7 @@ import {
   getYouTubeCategoryId,
   KNOWN_CATEGORY_IDS,
 } from "@/lib/youtube/categories";
-import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
+import { getBuzzCandidatePoolSize } from "@/lib/ranking/buzzRankingQuality";
 import { getPublishedAfter } from "@/lib/ranking/periods";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
 import {
@@ -106,6 +106,19 @@ function matchesGenre(categoryId: string | null, genre: GenreId): boolean {
   return categoryId === getYouTubeCategoryId(genre);
 }
 
+function resolveContentKind(row: VideoRow): Video["contentKind"] {
+  if (row.is_live === true) {
+    return "live";
+  }
+  if (row.is_short === true) {
+    return "short";
+  }
+  if (row.is_live === false && row.is_short === false) {
+    return "regular";
+  }
+  return "unknown";
+}
+
 function mapVideoRowToCandidate(
   row: VideoRow,
   latestSnapshot: VideoSnapshotRow | undefined,
@@ -118,6 +131,9 @@ function mapVideoRowToCandidate(
     title: row.title ?? row.youtube_video_id,
     thumbnailUrl: row.thumbnail_url ?? "",
     publishedAt: row.published_at ?? new Date().toISOString(),
+    categoryId: row.category_id ?? undefined,
+    contentKind: resolveContentKind(row),
+    durationSeconds: row.duration_seconds ?? undefined,
     channel: {
       id: row.channel_id ?? "",
       name: row.channel_name ?? "",
@@ -154,7 +170,7 @@ export async function getBuzzRankingCandidatesFromDb(
     .eq("is_active", true)
     .gte("published_at", publishedAfter)
     .order("last_seen_at", { ascending: false })
-    .limit(OBSERVABILITY_CONFIG.batchSize.rankingSnapshotInsert);
+    .limit(getBuzzCandidatePoolSize());
 
   if (error) {
     throw new Error(`videos lookup failed: ${error.message}`);

@@ -1,3 +1,7 @@
+import {
+  buildChannelUpsertFromYouTube,
+  buildVideoUpsertFromYouTubeItem,
+} from "@/lib/discovery/parseYouTubeVideoForStorage";
 import { buildMostPopularSourceKey, buildSearchSourceKey } from "@/lib/discovery/sourceKey";
 import { recordDiscovery } from "@/lib/discovery/repository";
 import { upsertSchedule } from "@/lib/measurement/scheduleRepository";
@@ -32,6 +36,8 @@ export interface BuzzRegistrationContext {
   sourceType?: DiscoverySourceType;
   sourceKey?: string;
   limit?: number;
+  registrationPath?: string;
+  classificationOverride?: { forceLive?: boolean; forceShort?: boolean };
 }
 
 export interface BuzzCandidateRegistrationDeps {
@@ -146,34 +152,35 @@ export async function registerBuzzCandidatesFromYouTubeItems(
   result.candidatesSkipped = items.length - registerable.length;
   const now = new Date().toISOString();
 
+  const classificationOverride =
+    context.classificationOverride ??
+    (context.sourceType === "shorts_search"
+      ? { forceShort: true }
+      : context.sourceType === "live_search"
+        ? { forceLive: true }
+        : undefined);
+
   for (const item of registerable) {
     try {
       const channel = channels.get(item.snippet.channelId);
-      const channelName = channel?.snippet.title ?? item.snippet.channelTitle;
-      const subscriberCountHidden =
-        channel?.statistics?.hiddenSubscriberCount === true;
 
-      await deps.upsertChannel({
-        youtubeChannelId: item.snippet.channelId,
-        name: channelName,
-        thumbnailUrl: channel?.snippet.thumbnails?.default?.url,
-        subscriberCountHidden,
-      });
+      await deps.upsertChannel(
+        buildChannelUpsertFromYouTube(
+          channel,
+          item.snippet.channelId,
+          item.snippet.channelTitle,
+        ),
+      );
 
       const wasExisting = existingVideoIds.has(item.id);
-      await deps.upsertVideo({
-        youtubeVideoId: item.id,
-        title: item.snippet.title,
-        channelId: item.snippet.channelId,
-        channelName,
-        thumbnailUrl:
-          item.snippet.thumbnails?.medium?.url ??
-          item.snippet.thumbnails?.default?.url ??
-          "",
-        publishedAt: item.snippet.publishedAt,
-        categoryId: item.snippet.categoryId,
-        lastSeenAt: now,
-      });
+      await deps.upsertVideo(
+        buildVideoUpsertFromYouTubeItem({
+          item,
+          channel,
+          lastSeenAt: now,
+          classificationOverride,
+        }),
+      );
 
       if (wasExisting) {
         result.videosUpdated += 1;
@@ -191,7 +198,7 @@ export async function registerBuzzCandidatesFromYouTubeItems(
           period: context.period,
           genre: context.genre,
           publishedAt: item.snippet.publishedAt,
-          registrationPath: "ranking_discovery",
+          registrationPath: context.registrationPath ?? "candidate_discovery",
         },
       });
 

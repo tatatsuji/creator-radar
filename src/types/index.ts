@@ -39,6 +39,8 @@ export interface Video {
   metrics: VideoMetrics;
   rankingDisplay?: RankingDisplayInfo;
   durationSeconds?: number;
+  categoryId?: string;
+  contentKind?: "regular" | "short" | "live" | "unknown";
 }
 
 export interface RankingItem {

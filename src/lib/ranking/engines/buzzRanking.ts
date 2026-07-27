@@ -1,3 +1,4 @@
+import { finalizeBuzzRankingList } from "@/lib/ranking/buzzRankingQuality";
 import { finalizeRankedVideos } from "@/lib/ranking/metrics";
 import { MAX_RANKING_RESULTS, RANKING_SCORE_NAMES } from "@/lib/ranking/rankingMeta";
 import type { SnapshotEnrichedVideo } from "@/lib/ranking/snapshotRankingBase";
@@ -26,8 +27,9 @@ export async function buildBuzzRankingVideos(
   period: RankingPeriod,
 ): Promise<Video[]> {
   const ranked = await finalizeRankedVideos(videos as VideoWithRawScore[], period);
+  const qualityFiltered = finalizeBuzzRankingList(ranked, period);
 
-  return ranked.slice(0, MAX_RANKING_RESULTS).map((video) => {
+  return qualityFiltered.map((video) => {
     const isMeasured = video.metrics.metricsSource === "measured";
     const heroMetric = isMeasured
       ? {

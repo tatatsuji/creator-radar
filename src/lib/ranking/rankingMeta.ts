@@ -44,3 +44,10 @@ export const RANKING_ACCUMULATING_MESSAGES: Record<RankingType, string> = {
 };
 
 export const MAX_RANKING_RESULTS = 100;
+
+/** Buzz ranking display and quality limits */
+export const MAX_BUZZ_RANKING_RESULTS = 100;
+export const MIN_BUZZ_RANKING_TARGET = 50;
+export const MAX_BUZZ_VIDEOS_PER_CHANNEL = 5;
+export const BUZZ_INITIAL_DISPLAY_COUNT = 25;
+export const BUZZ_CANDIDATE_POOL_SIZE = 300;

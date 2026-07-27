@@ -23,6 +23,8 @@ export interface YouTubeVideoItem {
     channelId: string;
     channelTitle: string;
     categoryId?: string;
+    tags?: string[];
+    liveBroadcastContent?: "none" | "live" | "upcoming";
     thumbnails: {
       maxres?: YouTubeThumbnail;
       high?: YouTubeThumbnail;

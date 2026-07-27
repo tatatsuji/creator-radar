@@ -1,18 +1,9 @@
 import { youtubeFetch } from "@/lib/youtube/client";
+import type { YouTubeVideoItem, YouTubeVideosResponse } from "@/lib/youtube/types";
 
 export interface ChannelUploadPlaylist {
   channelId: string;
   uploadsPlaylistId: string;
-}
-
-export interface DiscoveredUploadVideo {
-  videoId: string;
-  title: string;
-  channelId: string;
-  channelName: string;
-  publishedAt: string;
-  thumbnailUrl: string;
-  categoryId?: string;
 }
 
 interface YouTubeChannelContentDetailsItem {
@@ -29,18 +20,8 @@ interface YouTubeChannelsContentDetailsResponse {
 }
 
 interface YouTubePlaylistItemSnippet {
-  title?: string;
-  publishedAt?: string;
-  channelId?: string;
-  channelTitle?: string;
   resourceId?: {
     videoId?: string;
-  };
-  thumbnails?: {
-    maxres?: { url?: string };
-    high?: { url?: string };
-    medium?: { url?: string };
-    default?: { url?: string };
   };
 }
 
@@ -48,27 +29,6 @@ interface YouTubePlaylistItemsResponse {
   items: Array<{
     snippet?: YouTubePlaylistItemSnippet;
   }>;
-}
-
-interface YouTubeVideoSnippetItem {
-  id: string;
-  snippet?: {
-    title?: string;
-    publishedAt?: string;
-    channelId?: string;
-    channelTitle?: string;
-    categoryId?: string;
-    thumbnails?: {
-      maxres?: { url?: string };
-      high?: { url?: string };
-      medium?: { url?: string };
-      default?: { url?: string };
-    };
-  };
-}
-
-interface YouTubeVideosResponse {
-  items: YouTubeVideoSnippetItem[];
 }
 
 const DEFAULT_UPLOADS_FETCH_LIMIT = 5;
@@ -117,7 +77,7 @@ export async function fetchLatestUploadVideoIds(
 export async function fetchDiscoveredUploadVideos(
   channelId: string,
   maxResults: number = DEFAULT_UPLOADS_FETCH_LIMIT,
-): Promise<{ videos: DiscoveredUploadVideo[]; quotaUsed: number }> {
+): Promise<{ items: YouTubeVideoItem[]; quotaUsed: number }> {
   const uploadsPlaylistId = await fetchChannelUploadsPlaylistId(channelId);
   const videoIds = await fetchLatestUploadVideoIds(
     uploadsPlaylistId,
@@ -125,43 +85,27 @@ export async function fetchDiscoveredUploadVideos(
   );
 
   if (videoIds.length === 0) {
-    return { videos: [], quotaUsed: 2 };
+    return { items: [], quotaUsed: 2 };
   }
 
   const response = await youtubeFetch<YouTubeVideosResponse>(
     "videos",
     {
-      part: "snippet",
+      part: "snippet,statistics,contentDetails",
       id: videoIds.join(","),
     },
     0,
   );
 
-  const videos: DiscoveredUploadVideo[] = [];
+  const items = response.items.filter(
+    (item) =>
+      item.id &&
+      item.snippet?.title &&
+      item.snippet.publishedAt &&
+      item.snippet.channelId,
+  );
 
-  for (const item of response.items) {
-    const snippet = item.snippet;
-    if (!snippet?.title || !snippet.publishedAt || !snippet.channelId) {
-      continue;
-    }
-
-    videos.push({
-      videoId: item.id,
-      title: snippet.title,
-      channelId: snippet.channelId,
-      channelName: snippet.channelTitle ?? "",
-      publishedAt: snippet.publishedAt,
-      thumbnailUrl:
-        snippet.thumbnails?.maxres?.url ??
-        snippet.thumbnails?.high?.url ??
-        snippet.thumbnails?.medium?.url ??
-        snippet.thumbnails?.default?.url ??
-        "/placeholder-thumbnail.svg",
-      categoryId: snippet.categoryId,
-    });
-  }
-
-  return { videos, quotaUsed: 3 };
+  return { items, quotaUsed: 3 };
 }
 
 export const YOUTUBE_UPLOADS_QUOTA = {

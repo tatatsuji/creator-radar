@@ -4,9 +4,7 @@ import { buildLaunchSpeedRankingVideos } from "@/lib/ranking/engines/launchSpeed
 import { buildPotentialRankingVideos } from "@/lib/ranking/engines/potentialRanking";
 import { countEarlyRiseEligible } from "@/lib/ranking/earlyRiseScore";
 import { countPotentialEligible } from "@/lib/ranking/potentialScore";
-import {
-  RANKING_ACCUMULATING_MESSAGES,
-} from "@/lib/ranking/rankingMeta";
+import { MIN_BUZZ_RANKING_TARGET, RANKING_ACCUMULATING_MESSAGES } from "@/lib/ranking/rankingMeta";
 import { getBuzzRankingFallbackCandidates } from "@/lib/ranking/buzzRankingFallback";
 import { getSnapshotMetricsSummary } from "@/lib/ranking/snapshotMetrics";
 import {
@@ -56,8 +54,11 @@ function assessReadiness(
     return {
       status: "ready",
       eligibleCount: totalCount,
-      requiredCount: 0,
-      message: "",
+      requiredCount: MIN_BUZZ_RANKING_TARGET,
+      message:
+        totalCount < MIN_BUZZ_RANKING_TARGET
+          ? `条件を満たす動画が${totalCount}件です（目標${MIN_BUZZ_RANKING_TARGET}件）。品質条件は緩めていません。`
+          : "",
     };
   }
 

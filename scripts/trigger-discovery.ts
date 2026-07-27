@@ -5,7 +5,10 @@ import { runDiscoveryCron } from "../src/lib/discovery/runDiscoveryCron";
 async function main(): Promise<void> {
   const result = await runDiscoveryCron();
   console.log(JSON.stringify(result, null, 2));
-  if (result.watchlist.status === "failed" && !result.ranking) {
+  if (
+    result.watchlist.status === "failed" &&
+    !result.candidateDiscovery
+  ) {
     process.exit(1);
   }
 }

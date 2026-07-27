@@ -1,32 +1,36 @@
-import { runRankingDiscovery } from "@/lib/discovery/runRankingDiscovery";
+import { runCandidateDiscoveryEngine } from "@/lib/discovery/candidateDiscoveryEngine";
+import type { CandidateDiscoveryEngineResult } from "@/lib/discovery/candidateDiscoveryEngine";
 import { runWatchlistDiscovery } from "@/lib/discovery/runWatchlistDiscovery";
-import type { RankingDiscoveryResult } from "@/lib/discovery/runRankingDiscovery";
 import type { WatchlistDiscoveryResult } from "@/lib/discovery/runWatchlistDiscovery";
 
 export interface DiscoveryCronResult {
   watchlist: WatchlistDiscoveryResult;
-  ranking: RankingDiscoveryResult | null;
-  rankingError: string | null;
+  candidateDiscovery: CandidateDiscoveryEngineResult | null;
+  candidateDiscoveryError: string | null;
   collectedAt: string;
+}
+
+function discoveryRunIndex(): number {
+  return Math.floor(Date.now() / (24 * 60 * 60 * 1000));
 }
 
 export async function runDiscoveryCron(): Promise<DiscoveryCronResult> {
   const watchlist = await runWatchlistDiscovery();
 
-  let ranking: RankingDiscoveryResult | null = null;
-  let rankingError: string | null = null;
+  let candidateDiscovery: CandidateDiscoveryEngineResult | null = null;
+  let candidateDiscoveryError: string | null = null;
 
   try {
-    ranking = await runRankingDiscovery();
+    candidateDiscovery = await runCandidateDiscoveryEngine(discoveryRunIndex());
   } catch (error) {
-    rankingError =
-      error instanceof Error ? error.message : "Ranking discovery failed.";
+    candidateDiscoveryError =
+      error instanceof Error ? error.message : "Candidate discovery failed.";
   }
 
   return {
     watchlist,
-    ranking,
-    rankingError,
+    candidateDiscovery,
+    candidateDiscoveryError,
     collectedAt: new Date().toISOString(),
   };
 }

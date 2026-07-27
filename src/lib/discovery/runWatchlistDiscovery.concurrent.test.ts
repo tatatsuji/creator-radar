@@ -14,6 +14,7 @@ describe("runWatchlistDiscovery concurrent guard", () => {
         acquireLock: vi.fn(),
         releaseLock: vi.fn(),
         fetchUploadVideos: vi.fn(),
+        fetchChannels: vi.fn(),
         upsertChannel: vi.fn(),
         upsertVideo: vi.fn(),
         recordDiscovery: vi.fn(),

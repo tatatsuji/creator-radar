@@ -244,6 +244,7 @@ export async function upsertChannelRecord(
       name: input.name,
       thumbnail_url: input.thumbnailUrl ?? null,
       subscriber_count_hidden: input.subscriberCountHidden,
+      subscriber_count: input.subscriberCount ?? null,
       updated_at: now,
     },
     { onConflict: "youtube_channel_id" },
@@ -289,11 +290,19 @@ export async function findExistingVideoIds(
 
 export async function upsertVideoRecord(input: UpsertVideoInput): Promise<void> {
   const supabase = createSupabaseServerClient();
+  const now = new Date().toISOString();
+
+  const { data: existing } = await supabase
+    .from("videos")
+    .select("youtube_video_id, first_discovered_at")
+    .eq("youtube_video_id", input.youtubeVideoId)
+    .maybeSingle();
 
   const { error } = await supabase.from("videos").upsert(
     {
       youtube_video_id: input.youtubeVideoId,
       title: input.title,
+      description: input.description ?? null,
       channel_id: input.channelId,
       channel_name: input.channelName,
       thumbnail_url: input.thumbnailUrl,
@@ -301,7 +310,18 @@ export async function upsertVideoRecord(input: UpsertVideoInput): Promise<void> 
       category_id: input.categoryId ?? null,
       is_active: true,
       last_seen_at: input.lastSeenAt,
-      updated_at: new Date().toISOString(),
+      duration_seconds: input.durationSeconds ?? null,
+      is_short: input.isShort ?? null,
+      is_live: input.isLive ?? null,
+      is_topic_content: input.isTopicContent ?? null,
+      view_count: input.viewCount ?? null,
+      like_count: input.likeCount ?? null,
+      comment_count: input.commentCount ?? null,
+      tags: input.tags ?? null,
+      content_features: input.contentFeatures ?? null,
+      first_discovered_at:
+        existing?.first_discovered_at ?? input.lastSeenAt,
+      updated_at: now,
     },
     { onConflict: "youtube_video_id" },
   );

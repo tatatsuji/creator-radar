@@ -33,6 +33,23 @@ export const OBSERVABILITY_CONFIG = {
     searchCallsPerRun: 2,
   },
 
+  phase1Discovery: {
+    categoryGenres: [
+      "entertainment",
+      "music",
+      "game",
+      "news",
+      "howto",
+      "sports",
+    ] as const satisfies readonly GenreId[],
+    genresPerRun: 3,
+    maxResultsPerCategorySource: 25,
+    shortsMaxResults: 25,
+    liveMaxResults: 25,
+    dbRemeasureLimit: 50,
+    maxCandidatesPerRun: 200,
+  },
+
   defaultNextCheckIntervalMs: 6 * 60 * 60 * 1000,
   defaultNextMeasurementIntervalMs: 60 * 60 * 1000,
   lockTtlMs: 5 * 60 * 1000,

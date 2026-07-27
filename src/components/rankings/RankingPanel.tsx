@@ -11,6 +11,7 @@ import { RankingCardSkeleton, StatePanel } from "@/components/ui/StatePanel";
 import { formatRankingUpdatedAt } from "@/lib/format";
 import type { HomeUrlState } from "@/lib/home/urlState";
 import {
+  BUZZ_INITIAL_DISPLAY_COUNT,
   RANKING_TYPE_DESCRIPTIONS,
   RANKING_TYPE_TITLES,
 } from "@/lib/ranking/rankingMeta";
@@ -76,6 +77,7 @@ export function RankingPanel({
     initialDataFreshnessAt,
   );
   const [metricsSummary, setMetricsSummary] = useState(initialMetricsSummary);
+  const [expandedBuzzKeys, setExpandedBuzzKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const skipInitialFetch = useRef(
@@ -89,6 +91,8 @@ export function RankingPanel({
 
   const isSearching = searchQuery.trim().length > 0;
   const isAccumulating = readiness.status === "accumulating";
+  const buzzViewKey = `${ranking}:${period}:${genre}`;
+  const showAllBuzz = expandedBuzzKeys.has(buzzViewKey);
 
   useEffect(() => {
     if (!active) {
@@ -181,9 +185,23 @@ export function RankingPanel({
     );
   }, [videos, searchQuery]);
 
+  const visibleVideos = useMemo(() => {
+    if (ranking !== "buzz" || showAllBuzz || isSearching) {
+      return filteredVideos;
+    }
+
+    return filteredVideos.slice(0, BUZZ_INITIAL_DISPLAY_COUNT);
+  }, [filteredVideos, isSearching, ranking, showAllBuzz]);
+
+  const canExpandBuzz =
+    ranking === "buzz" &&
+    !isSearching &&
+    filteredVideos.length > BUZZ_INITIAL_DISPLAY_COUNT &&
+    !showAllBuzz;
+
   const statusLine = loading
     ? "読み込み中..."
-    : `${formatRankingUpdatedAt(dataFreshnessAt ?? updatedAt)} · ${getPeriodLabel(period)} · ${filteredVideos.length}件`;
+    : `${formatRankingUpdatedAt(dataFreshnessAt ?? updatedAt)} · ${getPeriodLabel(period)} · ${filteredVideos.length}件${ranking === "buzz" && visibleVideos.length < filteredVideos.length ? `（${visibleVideos.length}件表示）` : ""}`;
 
   if (!loading && !error && isAccumulating) {
     return (
@@ -256,9 +274,9 @@ export function RankingPanel({
         </ul>
       ) : null}
 
-      {!loading && !error && filteredVideos.length > 0 ? (
+      {!loading && !error && visibleVideos.length > 0 ? (
         <ul className="grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
-          {filteredVideos.map((video, index) => (
+          {visibleVideos.map((video, index) => (
             <li key={video.id}>
               <VideoCard
                 video={video}
@@ -271,6 +289,20 @@ export function RankingPanel({
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {canExpandBuzz ? (
+        <div className="flex justify-center pt-2">
+          <button
+            type="button"
+            onClick={() =>
+              setExpandedBuzzKeys((current) => new Set(current).add(buzzViewKey))
+            }
+            className="rounded-full border border-zinc-700 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-100 transition hover:border-zinc-500 hover:bg-zinc-800"
+          >
+            もっと見る（最大{filteredVideos.length}件）
+          </button>
+        </div>
       ) : null}
 
       {!loading && !error && filteredVideos.length === 0 ? (

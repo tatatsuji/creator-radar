@@ -1,5 +1,9 @@
 import { buildWatchlistUploadSourceKey } from "@/lib/discovery/sourceKey";
 import {
+  buildChannelUpsertFromYouTube,
+  buildVideoUpsertFromYouTubeItem,
+} from "@/lib/discovery/parseYouTubeVideoForStorage";
+import {
   fetchDiscoveredUploadVideos,
   YOUTUBE_UPLOADS_QUOTA,
 } from "@/lib/discovery/youtubeUploads";
@@ -16,6 +20,7 @@ import {
   upsertVideoRecord,
 } from "@/lib/snapshots/repository";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { fetchYouTubeChannelsByIds } from "@/lib/youtube/rankings";
 import {
   acquireWatchlistLock,
   getDueWatchlistChannels,
@@ -44,6 +49,7 @@ export interface WatchlistDiscoveryDeps {
   acquireLock: typeof acquireWatchlistLock;
   releaseLock: typeof releaseWatchlistLock;
   fetchUploadVideos: typeof fetchDiscoveredUploadVideos;
+  fetchChannels: typeof fetchYouTubeChannelsByIds;
   upsertChannel: typeof upsertChannelRecord;
   upsertVideo: typeof upsertVideoRecord;
   recordDiscovery: typeof recordDiscovery;
@@ -60,6 +66,7 @@ const defaultDeps: WatchlistDiscoveryDeps = {
   acquireLock: acquireWatchlistLock,
   releaseLock: releaseWatchlistLock,
   fetchUploadVideos: fetchDiscoveredUploadVideos,
+  fetchChannels: fetchYouTubeChannelsByIds,
   upsertChannel: upsertChannelRecord,
   upsertVideo: upsertVideoRecord,
   recordDiscovery,
@@ -95,43 +102,46 @@ async function processWatchlistChannel(
       };
     }
 
-    const { videos, quotaUsed } = await deps.fetchUploadVideos(
+    const { items, quotaUsed } = await deps.fetchUploadVideos(
       channel.channel_id,
     );
 
-    if (videos.length > 0) {
-      await deps.upsertChannel({
-        youtubeChannelId: channel.channel_id,
-        name: channel.name ?? videos[0]?.channelName ?? channel.channel_id,
-        subscriberCountHidden: false,
-      });
+    const channels = await deps.fetchChannels([channel.channel_id]);
+    const channelDetails = channels.get(channel.channel_id);
+
+    if (items.length > 0) {
+      await deps.upsertChannel(
+        buildChannelUpsertFromYouTube(
+          channelDetails,
+          channel.channel_id,
+          channel.name ?? items[0]?.snippet.channelTitle ?? channel.channel_id,
+        ),
+      );
     }
 
     const now = new Date().toISOString();
     let discoveriesInserted = 0;
     let discoveriesDuplicate = 0;
 
-    for (const video of videos) {
-      await deps.upsertVideo({
-        youtubeVideoId: video.videoId,
-        title: video.title,
-        channelId: video.channelId,
-        channelName: video.channelName,
-        thumbnailUrl: video.thumbnailUrl,
-        publishedAt: video.publishedAt,
-        categoryId: video.categoryId,
-        lastSeenAt: now,
-      });
+    for (const item of items) {
+      await deps.upsertVideo(
+        buildVideoUpsertFromYouTubeItem({
+          item,
+          channel: channelDetails,
+          lastSeenAt: now,
+        }),
+      );
 
       const result = await deps.recordDiscovery({
-        videoId: video.videoId,
-        channelId: video.channelId,
+        videoId: item.id,
+        channelId: item.snippet.channelId,
         sourceType: "watchlist_upload",
         sourceKey: buildWatchlistUploadSourceKey(channel.channel_id),
         metadata: {
           watchlistSource: channel.source,
           watchlistCategory: channel.category,
-          publishedAt: video.publishedAt,
+          publishedAt: item.snippet.publishedAt,
+          registrationPath: "watchlist_discovery",
         },
       });
 
@@ -141,13 +151,13 @@ async function processWatchlistChannel(
         discoveriesDuplicate += 1;
       }
 
-      await deps.upsertSchedule(video.videoId);
+      await deps.upsertSchedule(item.id);
     }
 
     await deps.markChecked(channel.channel_id);
 
     return {
-      videosDiscovered: videos.length,
+      videosDiscovered: items.length,
       discoveriesInserted,
       discoveriesDuplicate,
       quotaUsed,

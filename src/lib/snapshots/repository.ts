@@ -47,6 +47,27 @@ function isMissingSubscriberCountColumnError(error: {
   );
 }
 
+const PHASE1_ENRICHMENT_COLUMNS = [
+  "description",
+  "view_count",
+  "like_count",
+  "comment_count",
+  "tags",
+  "content_features",
+] as const;
+
+function isMissingPhase1EnrichmentColumnError(error: {
+  code?: string;
+  message?: string;
+}): boolean {
+  if (error.code === "42703") {
+    return true;
+  }
+  return PHASE1_ENRICHMENT_COLUMNS.some((column) =>
+    error.message?.includes(column),
+  );
+}
+
 const VIDEO_SNAPSHOT_SELECT_WITH_SUBSCRIBER =
   "id, video_id, view_count, like_count, comment_count, subscriber_count, captured_at";
 
@@ -250,6 +271,23 @@ export async function upsertChannelRecord(
     { onConflict: "youtube_channel_id" },
   );
 
+  if (error && isMissingSubscriberCountColumnError(error)) {
+    const { error: fallbackError } = await supabase.from("channels").upsert(
+      {
+        youtube_channel_id: input.youtubeChannelId,
+        name: input.name,
+        thumbnail_url: input.thumbnailUrl ?? null,
+        subscriber_count_hidden: input.subscriberCountHidden,
+        updated_at: now,
+      },
+      { onConflict: "youtube_channel_id" },
+    );
+    if (fallbackError) {
+      throw new Error(`channels upsert failed: ${fallbackError.message}`);
+    }
+    return;
+  }
+
   if (error) {
     throw new Error(`channels upsert failed: ${error.message}`);
   }
@@ -298,33 +336,49 @@ export async function upsertVideoRecord(input: UpsertVideoInput): Promise<void> 
     .eq("youtube_video_id", input.youtubeVideoId)
     .maybeSingle();
 
-  const { error } = await supabase.from("videos").upsert(
-    {
-      youtube_video_id: input.youtubeVideoId,
-      title: input.title,
-      description: input.description ?? null,
-      channel_id: input.channelId,
-      channel_name: input.channelName,
-      thumbnail_url: input.thumbnailUrl,
-      published_at: input.publishedAt,
-      category_id: input.categoryId ?? null,
-      is_active: true,
-      last_seen_at: input.lastSeenAt,
-      duration_seconds: input.durationSeconds ?? null,
-      is_short: input.isShort ?? null,
-      is_live: input.isLive ?? null,
-      is_topic_content: input.isTopicContent ?? null,
-      view_count: input.viewCount ?? null,
-      like_count: input.likeCount ?? null,
-      comment_count: input.commentCount ?? null,
-      tags: input.tags ?? null,
-      content_features: input.contentFeatures ?? null,
-      first_discovered_at:
-        existing?.first_discovered_at ?? input.lastSeenAt,
-      updated_at: now,
-    },
-    { onConflict: "youtube_video_id" },
-  );
+  const fullPayload = {
+    youtube_video_id: input.youtubeVideoId,
+    title: input.title,
+    description: input.description ?? null,
+    channel_id: input.channelId,
+    channel_name: input.channelName,
+    thumbnail_url: input.thumbnailUrl,
+    published_at: input.publishedAt,
+    category_id: input.categoryId ?? null,
+    is_active: true,
+    last_seen_at: input.lastSeenAt,
+    duration_seconds: input.durationSeconds ?? null,
+    is_short: input.isShort ?? null,
+    is_live: input.isLive ?? null,
+    is_topic_content: input.isTopicContent ?? null,
+    view_count: input.viewCount ?? null,
+    like_count: input.likeCount ?? null,
+    comment_count: input.commentCount ?? null,
+    tags: input.tags ?? null,
+    content_features: input.contentFeatures ?? null,
+    first_discovered_at:
+      existing?.first_discovered_at ?? input.lastSeenAt,
+    updated_at: now,
+  };
+
+  let { error } = await supabase.from("videos").upsert(fullPayload, {
+    onConflict: "youtube_video_id",
+  });
+
+  if (error && isMissingPhase1EnrichmentColumnError(error)) {
+    const {
+      description: _description,
+      view_count: _viewCount,
+      like_count: _likeCount,
+      comment_count: _commentCount,
+      tags: _tags,
+      content_features: _contentFeatures,
+      ...legacyPayload
+    } = fullPayload;
+    ({ error } = await supabase.from("videos").upsert(legacyPayload, {
+      onConflict: "youtube_video_id",
+    }));
+  }
 
   if (error) {
     throw new Error(`videos upsert failed: ${error.message}`);

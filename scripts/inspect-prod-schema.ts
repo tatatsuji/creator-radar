@@ -44,7 +44,12 @@ async function main(): Promise<void> {
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing Supabase env vars");
 
-  const supabase = createClient(url, key);
+  const supabase = createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 
   const videos006 = [
     "description",

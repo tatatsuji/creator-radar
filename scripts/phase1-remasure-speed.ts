@@ -3,7 +3,7 @@
  * Phase1 speed verification: post-6h-cron discoveries only.
  * Does NOT mix historical pre-cron discovery latency.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -180,6 +180,7 @@ async function main(): Promise<void> {
     },
   };
 
+  mkdirSync(resolve(projectRoot, ".validation"), { recursive: true });
   writeFileSync(
     resolve(projectRoot, ".validation/phase1-speed-remasure.json"),
     JSON.stringify(report, null, 2),

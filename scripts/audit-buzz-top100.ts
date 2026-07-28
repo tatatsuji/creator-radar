@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,7 +15,9 @@ import { getSnapshotMetricsSummary } from "../src/lib/ranking/snapshotMetrics";
 const projectRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 
 function loadEnvFile(path: string): void {
-  for (const line of readFileSync(resolve(projectRoot, path), "utf8").split(/\r?\n/)) {
+  const fullPath = resolve(projectRoot, path);
+  if (!existsSync(fullPath)) return;
+  for (const line of readFileSync(fullPath, "utf8").split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
     const index = trimmed.indexOf("=");
@@ -97,6 +99,8 @@ async function main(): Promise<void> {
         },
       };
 
+  const validationDir = resolve(projectRoot, ".validation");
+  mkdirSync(validationDir, { recursive: true });
   writeFileSync(
     resolve(projectRoot, ".validation/buzz-top100-audit.json"),
     JSON.stringify(payload, null, 2),

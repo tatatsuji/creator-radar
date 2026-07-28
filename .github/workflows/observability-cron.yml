@@ -7,14 +7,29 @@ on:
     # Discovery: every 6 hours (primary — Vercel Hobby cannot run sub-daily crons)
     - cron: "0 */6 * * *"
   workflow_dispatch:
+    inputs:
+      job:
+        description: "Job to run (avoid 'both' unless intentional)"
+        required: true
+        default: "measurement"
+        type: choice
+        options:
+          - measurement
+          - discovery
+          - both
 
 concurrency:
-  group: observability-cron
+  group: observability-cron-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  TZ: UTC
 
 jobs:
   measurement:
-    if: github.event.schedule == '15 * * * *' || github.event_name == 'workflow_dispatch'
+    if: |
+      github.event.schedule == '15 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'measurement' || github.event.inputs.job == 'both'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -24,6 +39,7 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
+      - run: touch .env.local
       - name: Run measurement
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -32,7 +48,9 @@ jobs:
         run: npm run cron:measurement
 
   discovery:
-    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
+    if: |
+      github.event.schedule == '0 */6 * * *' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'discovery' || github.event.inputs.job == 'both'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -42,6 +60,7 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
+      - run: touch .env.local
       - name: Run discovery (primary 6h schedule)
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

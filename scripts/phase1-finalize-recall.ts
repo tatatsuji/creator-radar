@@ -3,7 +3,7 @@
  * Phase1 finalize recall: new multi-set Ground Truth + full metrics.
  * Use --skip-discovery on GHA to avoid double-running discovery (observability-cron handles it).
  */
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -160,8 +160,11 @@ async function analyzeMissedVideos(
 async function main(): Promise<void> {
   const args = new Set(process.argv.slice(2));
   const skipDiscovery = args.has("--skip-discovery");
+  const skipMissedAnalysis = args.has("--skip-missed-analysis");
   const env = loadEnv();
   const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  mkdirSync(resolve(projectRoot, ".validation"), { recursive: true });
 
   const oldReportPath = resolve(projectRoot, ".validation/discovery-recall-report.json");
   const oldGtPath = resolve(projectRoot, ".validation/discovery-recall-ground-truth.json");
@@ -192,7 +195,7 @@ async function main(): Promise<void> {
   const quotaUsed24h = await sumQuotaFromRuns(supabase, since24h);
   const quotaEstimate = estimateDiscoveryQuotaPerRun();
   const missedAnalysis =
-    measure.missedCount > 0
+    !skipMissedAnalysis && measure.missedCount > 0
       ? await analyzeMissedVideos(
           measure.missedVideoIds,
           groundTruth.videos ?? groundTruth.sets?.flatMap((s: { videos: unknown[] }) => s.videos) ?? [],

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed:load": "tsx --env-file=.env.local scripts/load-seed-channels.ts",
     "seed:dry-run": "tsx --env-file=.env.local scripts/load-seed-channels.ts --dry-run",

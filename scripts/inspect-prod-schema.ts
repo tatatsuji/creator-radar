@@ -3,7 +3,7 @@
  * Inspect DB schema via Supabase client (no direct Postgres password required).
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,7 +37,9 @@ async function probeColumn(
 }
 
 async function main(): Promise<void> {
-  const env = loadEnvFile(resolve(projectRoot, ".env.local"));
+  const envPath = resolve(projectRoot, ".env.local");
+  const fileEnv = existsSync(envPath) ? loadEnvFile(envPath) : {};
+  const env = { ...fileEnv, ...process.env } as Record<string, string>;
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing Supabase env vars");

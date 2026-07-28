@@ -1,29 +1,30 @@
 name: Phase1 Verification
 
 # Operational verification for Phase1 completion.
-# Does NOT run discovery (observability-cron.yml owns 6h discovery — no Vercel overlap).
+# Discovery is owned by observability-cron.yml (--skip-discovery here avoids double execution).
 
 on:
   schedule:
-    # 07:10 UTC daily = 00:10 Pacific — after YouTube quota reset (midnight PT)
-    - cron: "10 7 * * *"
-    # 18:00 UTC daily — speed sample check (post-6h-cron window)
+    # 08:10 UTC = 00:10 PST / 01:10 PDT — after YouTube quota reset (midnight Pacific)
+    - cron: "10 8 * * *"
+    # 18:00 UTC — post-6h-cron speed sample (read-only DB)
     - cron: "0 18 * * *"
   workflow_dispatch:
     inputs:
       job:
         description: "Verification job to run"
         required: true
-        default: "full-report"
+        default: "verify-env"
         type: choice
         options:
-          - finalize-recall
-          - remasure-speed
+          - verify-env
+          - remeasure-speed
           - buzz-audit
+          - finalize-recall
           - full-report
 
 concurrency:
-  group: phase1-verification
+  group: phase1-verification-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -31,10 +32,30 @@ env:
   PHASE1_6H_CRON_START_ISO: "2026-07-27T18:00:00.000Z"
 
 jobs:
+  verify-env:
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.job == 'verify-env'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Verify secrets and DB schema (read-only, no YouTube API)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run db:inspect-schema
+
   finalize-recall:
     if: |
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'finalize-recall' || github.event.inputs.job == 'full-report')) ||
-      (github.event_name == 'schedule' && github.event.schedule == '10 7 * * *')
+      (github.event_name == 'schedule' && github.event.schedule == '10 8 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -44,24 +65,29 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
+      - run: touch .env.local
+      - run: mkdir -p .validation
       - name: Finalize recall (skip discovery — observability-cron owns it)
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           PHASE1_6H_CRON_START_ISO: ${{ env.PHASE1_6H_CRON_START_ISO }}
-        run: npm run phase1:finalize-recall -- --skip-discovery
+        run: npm run phase1:finalize-recall -- --skip-discovery --skip-missed-analysis
       - name: Upload recall artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phase1-recall-${{ github.run_id }}
+          retention-days: 14
           path: |
             .validation/phase1-recall-finalize.json
             .validation/discovery-recall-report-new-gt.json
+            .validation/discovery-recall-ground-truth-new.json
+            .validation/discovery-recall-report-old-gt.json
           if-no-files-found: ignore
 
-  remasure-speed:
+  remeasure-speed:
     if: |
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'remasure-speed' || github.event.inputs.job == 'full-report')) ||
       (github.event_name == 'schedule' && github.event.schedule == '0 18 * * *')
@@ -74,7 +100,9 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - name: Post-6h-cron speed verification
+      - run: touch .env.local
+      - run: mkdir -p .validation
+      - name: Post-6h-cron speed verification (read-only DB)
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -85,12 +113,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: phase1-speed-${{ github.run_id }}
+          retention-days: 14
           path: .validation/phase1-speed-remasure.json
           if-no-files-found: ignore
 
   buzz-audit:
     if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'buzz-audit' || github.event.inputs.job == 'full-report'))
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'buzz-audit' || github.event.inputs.job == 'full-report')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -100,7 +129,9 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - name: Buzz ranking audit
+      - run: touch .env.local
+      - run: mkdir -p .validation
+      - name: Buzz ranking audit (DB read, no discovery)
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -111,11 +142,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: phase1-buzz-${{ github.run_id }}
+          retention-days: 14
           path: .validation/buzz-top100-audit.json
           if-no-files-found: ignore
 
   final-report:
-    needs: [finalize-recall, remasure-speed, buzz-audit]
+    needs: [finalize-recall, remeasure-speed, buzz-audit]
     if: |
       always() &&
       github.event_name == 'workflow_dispatch' &&
@@ -129,12 +161,38 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
+      - run: touch .env.local
+      - run: mkdir -p .validation
+      - name: Download recall artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: phase1-recall-${{ github.run_id }}
+          path: .
+      - name: Download speed artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: phase1-speed-${{ github.run_id }}
+          path: .
+      - name: Download buzz artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: phase1-buzz-${{ github.run_id }}
+          path: .
       - name: Generate Phase1 final judgment
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run phase1:final-report
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: phase1-final-report-${{ github.run_id }}
+          retention-days: 14
           path: .validation/phase1-final-judgment.json
+          if-no-files-found: ignore

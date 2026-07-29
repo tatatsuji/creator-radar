@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { VideoDetailView } from "@/components/video/VideoDetailView";
-import { getAnalysisPageDescription } from "@/lib/video/analysisDisplay";
+import { getRankingAwarePageDescription } from "@/lib/video/detailContext";
 import { parseHomeUrlState } from "@/lib/home/urlState";
 import { getVideoByIdFromDb } from "@/lib/videos/getVideoFromDb";
 
@@ -29,7 +29,7 @@ export async function generateMetadata({
   }
 
   const title = video.title;
-  const description = getAnalysisPageDescription(video);
+  const description = getRankingAwarePageDescription(video, homeUrlState.ranking);
 
   return {
     title,

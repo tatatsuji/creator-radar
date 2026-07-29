@@ -6,6 +6,7 @@ import {
   formatSubscriberCount,
 } from "@/lib/format";
 import type { HomeUrlState } from "@/lib/home/urlState";
+import { RANKING_TYPE_LABELS } from "@/lib/ranking/rankingMeta";
 import type { RankingPeriod, Video } from "@/types";
 
 interface VideoAnalysisHeaderProps {
@@ -19,6 +20,16 @@ export function VideoAnalysisHeader({
   period,
   homeUrlState,
 }: VideoAnalysisHeaderProps) {
+  const rankingLabel = RANKING_TYPE_LABELS[homeUrlState.ranking];
+  const contentKindLabel =
+    video.contentKind === "short"
+      ? "Shorts"
+      : video.contentKind === "live"
+        ? "ライブ"
+        : video.contentKind === "regular"
+          ? "通常動画"
+          : null;
+
   return (
     <section className="glass-panel overflow-hidden">
       <div className="grid lg:grid-cols-[minmax(0,340px)_1fr]">
@@ -38,9 +49,14 @@ export function VideoAnalysisHeader({
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <MetricsSourceBadge source={video.metrics.metricsSource} />
-              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-zinc-400">
-                動画分析
+              <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-200">
+                {rankingLabel}から
               </span>
+              {contentKindLabel ? (
+                <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-zinc-400">
+                  {contentKindLabel}
+                </span>
+              ) : null}
             </div>
             <h1 className="text-xl font-bold leading-snug tracking-tight text-zinc-50 sm:text-2xl">
               {video.title}

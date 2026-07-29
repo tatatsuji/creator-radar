@@ -1,15 +1,26 @@
 import { getCardHeroMetric } from "@/lib/ranking/cardDisplay";
-import { getVideoAnalysisInsight, RANKING_REFERENCE_EXPLANATION } from "@/lib/video/analysisDisplay";
+import {
+  getVideoAnalysisInsight,
+  RANKING_REFERENCE_EXPLANATION,
+} from "@/lib/video/analysisDisplay";
+import { getVideoDetailRankingContext } from "@/lib/video/detailContext";
 import type { RankingPeriod, Video } from "@/types";
+import type { RankingType } from "@/types/ranking";
 
 interface VideoAnalysisInsightProps {
   video: Video;
   period: RankingPeriod;
+  ranking?: RankingType;
 }
 
-export function VideoAnalysisInsight({ video, period }: VideoAnalysisInsightProps) {
+export function VideoAnalysisInsight({
+  video,
+  period,
+  ranking = "buzz",
+}: VideoAnalysisInsightProps) {
   const insight = getVideoAnalysisInsight(video, period);
   const heroMetric = getCardHeroMetric(video, period);
+  const rankingContext = getVideoDetailRankingContext(video, ranking, period);
   const isMeasured = video.metrics.metricsSource === "measured";
 
   return (
@@ -20,7 +31,7 @@ export function VideoAnalysisInsight({ video, period }: VideoAnalysisInsightProp
       <div className="space-y-5">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-violet-300/90">
-            分析サマリー
+            数値で見る伸び
           </p>
           <h2
             id="analysis-insight-heading"
@@ -61,10 +72,10 @@ export function VideoAnalysisInsight({ video, period }: VideoAnalysisInsightProp
 
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              {insight.rankingReference.label}
+              {rankingContext.scoreLabel}
             </p>
             <p className="mt-2 text-3xl font-bold tabular-nums text-zinc-50">
-              {insight.rankingReference.value}
+              {rankingContext.scoreValue}
             </p>
             <p
               className="mt-2 text-xs leading-relaxed text-zinc-500"

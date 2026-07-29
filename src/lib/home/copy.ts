@@ -1,4 +1,4 @@
-export const SERVICE_TAGLINE = "YouTubeの「今」と「次」を見える化する。";
+export const SERVICE_TAGLINE = "YouTubeで勝つための、毎日の分析コーチ。";
 
 export {
   RANKING_ACCUMULATING_MESSAGES,

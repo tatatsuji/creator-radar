@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { VideoActionableTakeaways } from "@/components/video/VideoActionableTakeaways";
 import { VideoAnalysisHeader } from "@/components/video/VideoAnalysisHeader";
 import { VideoAnalysisInsight } from "@/components/video/VideoAnalysisInsight";
 import { VideoGrowthMetrics } from "@/components/video/VideoGrowthMetrics";
@@ -47,6 +48,7 @@ export function VideoDetailView({
             period={period}
             homeUrlState={homeUrlState}
           />
+          <VideoActionableTakeaways video={video} />
           <VideoAnalysisInsight
             video={video}
             period={period}

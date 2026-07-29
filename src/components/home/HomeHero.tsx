@@ -10,7 +10,7 @@ export function HomeHero() {
         {SERVICE_TAGLINE}
       </h1>
       <p className="max-w-2xl text-sm leading-relaxed text-violet-200 sm:text-base">
-        バズ動画・伸び始め・初速・伸びそうの4つの視点で、YouTubeの変化を実測データから発見できます。
+        ランキングは入口。伸びた理由と、自分に活かせるポイントまで分かるサービスです。
       </p>
     </section>
   );

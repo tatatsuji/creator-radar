@@ -5,7 +5,9 @@ import {
   ESTIMATED_VELOCITY_LABEL,
 } from "@/lib/ranking/metrics";
 import { getViewDeltaLabel } from "@/lib/ranking/periods";
+import { RANKING_TYPE_WHY_PREFIX } from "@/lib/ranking/rankingMeta";
 import type { RankingPeriod, Video } from "@/types";
+import type { RankingType } from "@/types/ranking";
 
 export const RADAR_SCORE_EXPLANATION =
   "再生速度・登録者比・新しさから算出（0〜100）";
@@ -94,4 +96,45 @@ export function getCardScoreMetric(video: Video): CardScoreMetric {
 
 export function getCardRankReason(video: Video): string | null {
   return video.rankingDisplay?.rankReason ?? null;
+}
+
+const CONTENT_KIND_LABELS: Record<NonNullable<Video["contentKind"]>, string> = {
+  short: "Shorts",
+  live: "ライブ",
+  regular: "通常動画",
+  unknown: "動画",
+};
+
+/**
+ * Short user-facing explanation of why the video ranks here (DB data only).
+ */
+export function getCardTrendInsight(
+  video: Video,
+  ranking: RankingType,
+  period: RankingPeriod,
+): string {
+  const prefix = RANKING_TYPE_WHY_PREFIX[ranking];
+  const kindLabel =
+    video.contentKind && video.contentKind !== "unknown"
+      ? CONTENT_KIND_LABELS[video.contentKind]
+      : null;
+
+  if (video.rankingDisplay?.rankReason) {
+    const base = video.rankingDisplay.rankReason;
+    return kindLabel ? `${prefix}: ${base}（${kindLabel}）` : `${prefix}: ${base}`;
+  }
+
+  if (video.metrics.metricsSource === "measured") {
+    const delta = formatViewDelta(video.metrics.viewDelta);
+    const label = getViewDeltaLabel(period);
+    return kindLabel
+      ? `${prefix}: ${label}${delta}の実測増加（${kindLabel}）`
+      : `${prefix}: ${label}${delta}の実測増加`;
+  }
+
+  const velocity = getVelocityDisplay(video, period);
+  const velocityText = `${velocity.value}${velocity.unit}`;
+  return kindLabel
+    ? `${prefix}: 公開後平均${velocityText}（${kindLabel}・推定）`
+    : `${prefix}: 公開後平均${velocityText}（推定）`;
 }

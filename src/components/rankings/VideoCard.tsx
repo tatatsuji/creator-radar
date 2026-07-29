@@ -6,9 +6,9 @@ import {
 } from "@/lib/format";
 import {
   getCardHeroMetric,
-  getCardRankReason,
   getCardScoreMetric,
   getCardSecondaryVelocity,
+  getCardTrendInsight,
   RADAR_SCORE_EXPLANATION,
 } from "@/lib/ranking/cardDisplay";
 import { buildVideoDetailHref, type HomeUrlState } from "@/lib/home/urlState";
@@ -38,7 +38,7 @@ export function VideoCard({
   const heroMetric = getCardHeroMetric(video, period);
   const secondaryVelocity = getCardSecondaryVelocity(video, period);
   const scoreMetric = getCardScoreMetric(video);
-  const rankReason = getCardRankReason(video);
+  const trendInsight = getCardTrendInsight(video, ranking, period);
   const rankLabel = isSearchResult ? `検索 #${rank}` : `#${rank}`;
   const detailHref = buildVideoDetailHref(video.id, {
     ...homeUrlState,
@@ -50,11 +50,11 @@ export function VideoCard({
 
   return (
     <article
-      className={`glass-card group overflow-hidden ${isFirst ? "glass-card--gold" : ""}`}
+      className={`glass-card group flex h-full flex-col overflow-hidden ${isFirst ? "glass-card--gold" : ""}`}
     >
       <Link
         href={detailHref}
-        className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050508]"
+        className="block flex-1 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050508]"
       >
         <div className="relative aspect-video overflow-hidden">
           <RemoteImage
@@ -98,9 +98,9 @@ export function VideoCard({
               {formatRelativePublishedAt(video.publishedAt)} · 総再生{" "}
               {formatCount(video.viewCount)}回
             </p>
-            {rankReason ? (
-              <p className="text-xs leading-relaxed text-zinc-400">{rankReason}</p>
-            ) : null}
+            <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs leading-relaxed text-zinc-300">
+              {trendInsight}
+            </p>
           </div>
 
           <div
@@ -133,25 +133,34 @@ export function VideoCard({
         </div>
       </Link>
 
-      <div className="flex gap-2 border-t border-white/[0.06] px-4 py-3 sm:px-5">
+      <div className="mt-auto flex flex-col gap-2 border-t border-white/[0.06] px-4 py-3 sm:flex-row sm:px-5">
         <Link
           href={detailHref}
-          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06]"
+          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600/90 px-4 text-sm font-semibold text-white transition hover:bg-violet-500"
         >
-          詳細を見る
+          なぜ伸びたかを見る
+          <ArrowIcon />
         </Link>
         <a
           href={youtubeUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-red-600/90 px-4 text-sm font-medium text-white transition hover:bg-red-500"
+          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06]"
           aria-label="YouTubeで開く"
         >
           <YouTubeIcon />
-          <span className="hidden sm:inline">YouTube</span>
+          <span>YouTube</span>
         </a>
       </div>
     </article>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
   );
 }
 

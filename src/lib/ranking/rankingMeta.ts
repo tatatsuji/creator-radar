@@ -26,6 +26,22 @@ export const RANKING_TYPE_DESCRIPTIONS: Record<RankingType, string> = {
   potential: "実測速度・加速度・ジャンル比較から、今後伸びやすい動画をスコア化して表示します。",
 };
 
+/** One-line comparison shown on the home page guide */
+export const RANKING_TYPE_ONE_LINERS: Record<RankingType, string> = {
+  buzz: "今、話題になっている動画",
+  early_rise: "再生が加速し始めた動画",
+  launch_speed: "公開直後から速い動画",
+  potential: "これから伸びそうな動画",
+};
+
+/** What makes a video rank here — shown on cards */
+export const RANKING_TYPE_WHY_PREFIX: Record<RankingType, string> = {
+  buzz: "話題化",
+  early_rise: "加速",
+  launch_speed: "初速",
+  potential: "伸び予兆",
+};
+
 export const RANKING_SCORE_NAMES: Record<RankingType, string> = {
   buzz: "バズスコア",
   early_rise: "加速スコア",

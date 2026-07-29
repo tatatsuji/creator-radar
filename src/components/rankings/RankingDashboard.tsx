@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { HomeHero } from "@/components/home/HomeHero";
+import { RankingTypeGuide } from "@/components/home/RankingTypeGuide";
 import { RankingTypeTabs } from "@/components/home/RankingTypeTabs";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -62,11 +63,12 @@ export function RankingDashboard({
         ranking: partial.ranking ?? urlState.ranking,
         period: partial.period ?? urlState.period,
         genre: partial.genre ?? urlState.genre,
+        format: partial.format ?? urlState.format,
       };
       const query = buildHomeSearchParams(next).toString();
       router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
     },
-    [pathname, router, urlState.genre, urlState.period, urlState.ranking],
+    [pathname, router, urlState.genre, urlState.period, urlState.ranking, urlState.format],
   );
 
   const setRanking = useCallback(
@@ -94,6 +96,7 @@ export function RankingDashboard({
         <section className="mb-6 space-y-5 sm:mb-8">
           <HomeHero />
           <RankingTypeTabs value={urlState.ranking} onChange={setRanking} />
+          <RankingTypeGuide active={urlState.ranking} />
         </section>
 
         <RankingPanel
@@ -102,9 +105,11 @@ export function RankingDashboard({
           searchQuery={searchQuery}
           period={urlState.period}
           genre={urlState.genre}
+          format={urlState.format}
           homeUrlState={urlState}
           onPeriodChange={(period) => updateHomeUrl({ period })}
           onGenreChange={(genre) => updateHomeUrl({ genre })}
+          onFormatChange={(format) => updateHomeUrl({ format })}
           onViewBuzz={() => setRanking("buzz")}
           initialVideos={useInitialPayload ? initialVideos : []}
           initialPeriod={initialPeriod}

@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DataAccumulatingPanel } from "@/components/home/DataAccumulatingPanel";
 import { MetricsCoverageBanner } from "@/components/rankings/MetricsCoverageBanner";
+import { RankingFiltersBar } from "@/components/rankings/RankingFiltersBar";
 import { VideoCard } from "@/components/rankings/VideoCard";
-import { GenreFilter } from "@/components/ui/GenreFilter";
-import { PeriodTabs } from "@/components/ui/PeriodTabs";
 import { RankingCardSkeleton, StatePanel } from "@/components/ui/StatePanel";
 import { formatRankingUpdatedAt } from "@/lib/format";
+import { matchesContentFormatFilter, type ContentFormatFilter } from "@/lib/home/contentFormat";
 import type { HomeUrlState } from "@/lib/home/urlState";
 import {
   BUZZ_INITIAL_DISPLAY_COUNT,
@@ -25,9 +25,11 @@ interface RankingPanelProps {
   searchQuery: string;
   period: RankingPeriod;
   genre: GenreId;
+  format: ContentFormatFilter;
   homeUrlState: HomeUrlState;
   onPeriodChange: (period: RankingPeriod) => void;
   onGenreChange: (genre: GenreId) => void;
+  onFormatChange: (format: ContentFormatFilter) => void;
   onViewBuzz?: () => void;
   initialVideos: Video[];
   initialPeriod: RankingPeriod;
@@ -46,9 +48,11 @@ export function RankingPanel({
   searchQuery,
   period,
   genre,
+  format,
   homeUrlState,
   onPeriodChange,
   onGenreChange,
+  onFormatChange,
   onViewBuzz,
   initialVideos,
   initialPeriod,
@@ -174,16 +178,21 @@ export function RankingPanel({
   const filteredVideos = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    if (!normalizedQuery) {
-      return videos;
-    }
+    return videos.filter((video) => {
+      if (!matchesContentFormatFilter(video.contentKind, format)) {
+        return false;
+      }
 
-    return videos.filter(
-      (video) =>
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return (
         video.title.toLowerCase().includes(normalizedQuery) ||
-        video.channel.name.toLowerCase().includes(normalizedQuery),
-    );
-  }, [videos, searchQuery]);
+        video.channel.name.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [videos, searchQuery, format]);
 
   const visibleVideos = useMemo(() => {
     if (ranking !== "buzz" || showAllBuzz || isSearching) {
@@ -237,7 +246,15 @@ export function RankingPanel({
         <p className="text-sm text-zinc-500">{statusLine}</p>
       </div>
 
-      <PeriodTabs value={period} onChange={onPeriodChange} />
+      <RankingFiltersBar
+        period={period}
+        genre={genre}
+        format={format}
+        availableGenres={availableGenres}
+        onPeriodChange={onPeriodChange}
+        onGenreChange={onGenreChange}
+        onFormatChange={onFormatChange}
+      />
 
       <div className="space-y-3">
         {!loading && !error && ranking === "buzz" ? (
@@ -249,11 +266,6 @@ export function RankingPanel({
             dataFreshnessAt={dataFreshnessAt}
           />
         ) : null}
-        <GenreFilter
-          value={genre}
-          availableGenres={availableGenres}
-          onChange={onGenreChange}
-        />
       </div>
 
       {error ? (
@@ -275,7 +287,7 @@ export function RankingPanel({
       ) : null}
 
       {!loading && !error && visibleVideos.length > 0 ? (
-        <ul className="grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
           {visibleVideos.map((video, index) => (
             <li key={video.id}>
               <VideoCard
@@ -318,7 +330,7 @@ export function RankingPanel({
           description={
             isSearching
               ? "別のキーワードを試すか、検索をクリアしてください。"
-              : "期間やジャンルを変更して、再度お試しください。"
+              : "期間・ジャンル・動画形式を変更して、再度お試しください。"
           }
         />
       ) : null}

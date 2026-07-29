@@ -21,6 +21,7 @@ describe("home url state", () => {
       ranking: "early_rise",
       period: "7d",
       genre: "game",
+      format: "all",
     });
   });
 
@@ -29,6 +30,7 @@ describe("home url state", () => {
       ranking: "early_rise",
       period: "3d",
       genre: "all",
+      format: "all",
     });
   });
 
@@ -37,6 +39,7 @@ describe("home url state", () => {
       ranking: "buzz",
       period: "24h",
       genre: "all",
+      format: "all",
     });
   });
 
@@ -46,8 +49,20 @@ describe("home url state", () => {
         ranking: "potential",
         period: "7d",
         genre: "game",
+        format: "all",
       }),
     ).toBe("/?ranking=potential&period=7d&genre=game");
+  });
+
+  it("includes format in home href when not all", () => {
+    expect(
+      buildHomeHref({
+        ranking: "buzz",
+        period: "24h",
+        genre: "all",
+        format: "short",
+      }),
+    ).toBe("/?format=short");
   });
 
   it("builds video detail href and round-trips home state", () => {
@@ -55,6 +70,7 @@ describe("home url state", () => {
       ranking: "launch_speed" as const,
       period: "7d" as const,
       genre: "game" as const,
+      format: "all" as const,
     };
     const href = buildVideoDetailHref("abc123", state);
 

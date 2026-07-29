@@ -1,18 +1,23 @@
+import { parseContentFormatFilter, type ContentFormatFilter } from "@/lib/home/contentFormat";
 import { parseRankingType, type RankingType } from "@/lib/home/rankingType";
 import { parseRankingPeriod } from "@/lib/ranking/periods";
 import { isGenreId } from "@/types/observability";
 import type { GenreId, RankingPeriod } from "@/types";
 
+export type { ContentFormatFilter };
+
 export interface HomeUrlState {
   ranking: RankingType;
   period: RankingPeriod;
   genre: GenreId;
+  format: ContentFormatFilter;
 }
 
 export const DEFAULT_HOME_URL_STATE: HomeUrlState = {
   ranking: "buzz",
   period: "24h",
   genre: "all",
+  format: "all",
 };
 
 type SearchParamsReader = {
@@ -35,6 +40,7 @@ export function parseHomeUrlState(searchParams: SearchParamsReader): HomeUrlStat
     ),
     period: parseRankingPeriod(searchParams.get("period")),
     genre: parseGenreId(searchParams.get("genre")),
+    format: parseContentFormatFilter(searchParams.get("format")),
   };
 }
 
@@ -51,6 +57,10 @@ export function buildHomeSearchParams(state: HomeUrlState): URLSearchParams {
 
   if (state.genre !== DEFAULT_HOME_URL_STATE.genre) {
     params.set("genre", state.genre);
+  }
+
+  if (state.format !== DEFAULT_HOME_URL_STATE.format) {
+    params.set("format", state.format);
   }
 
   return params;

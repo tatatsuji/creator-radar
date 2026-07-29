@@ -67,3 +67,70 @@ export const MIN_BUZZ_RANKING_TARGET = 50;
 export const MAX_BUZZ_VIDEOS_PER_CHANNEL = 5;
 export const BUZZ_INITIAL_DISPLAY_COUNT = 25;
 export const BUZZ_CANDIDATE_POOL_SIZE = 300;
+
+/** Phase2: seven first-class ranking perspectives */
+export type RankingViewId = RankingType | "genre" | "shorts" | "live";
+
+export interface RankingViewDefinition {
+  id: RankingViewId;
+  label: string;
+  oneLiner: string;
+  description: string;
+}
+
+export const RANKING_VIEW_DEFINITIONS: RankingViewDefinition[] = [
+  {
+    id: "buzz",
+    label: RANKING_TYPE_LABELS.buzz,
+    oneLiner: RANKING_TYPE_ONE_LINERS.buzz,
+    description: RANKING_TYPE_DESCRIPTIONS.buzz,
+  },
+  {
+    id: "early_rise",
+    label: RANKING_TYPE_LABELS.early_rise,
+    oneLiner: RANKING_TYPE_ONE_LINERS.early_rise,
+    description: RANKING_TYPE_DESCRIPTIONS.early_rise,
+  },
+  {
+    id: "launch_speed",
+    label: RANKING_TYPE_LABELS.launch_speed,
+    oneLiner: RANKING_TYPE_ONE_LINERS.launch_speed,
+    description: RANKING_TYPE_DESCRIPTIONS.launch_speed,
+  },
+  {
+    id: "potential",
+    label: RANKING_TYPE_LABELS.potential,
+    oneLiner: RANKING_TYPE_ONE_LINERS.potential,
+    description: RANKING_TYPE_DESCRIPTIONS.potential,
+  },
+  {
+    id: "genre",
+    label: "ジャンル別",
+    oneLiner: "ゲーム・教育など、ジャンルで絞った伸び",
+    description:
+      "同じジャンル内で伸びている動画を比較できます。自分のチャンネルジャンルに近い動画を探すときに使います。",
+  },
+  {
+    id: "shorts",
+    label: "Shorts",
+    oneLiner: "短尺で今伸びている動画",
+    description:
+      "Shorts形式に絞って、縦型・短尺の伸び方を確認できます。初速と拡散の参考に使います。",
+  },
+  {
+    id: "live",
+    label: "ライブ",
+    oneLiner: "配信中・急上昇のライブ",
+    description:
+      "ライブ配信に絞って、リアルタイムで伸びている配信を確認できます。",
+  },
+];
+
+export function getRankingViewDefinition(
+  id: RankingViewId,
+): RankingViewDefinition {
+  return (
+    RANKING_VIEW_DEFINITIONS.find((view) => view.id === id) ??
+    RANKING_VIEW_DEFINITIONS[0]!
+  );
+}

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DataAccumulatingPanel } from "@/components/home/DataAccumulatingPanel";
 import { MetricsCoverageBanner } from "@/components/rankings/MetricsCoverageBanner";
 import { RankingFiltersBar } from "@/components/rankings/RankingFiltersBar";
+import { RankingViewContextBanner } from "@/components/rankings/RankingViewContextBanner";
 import { VideoCard } from "@/components/rankings/VideoCard";
 import { RankingCardSkeleton, StatePanel } from "@/components/ui/StatePanel";
 import { formatRankingUpdatedAt } from "@/lib/format";
@@ -15,7 +16,7 @@ import {
   RANKING_TYPE_DESCRIPTIONS,
   RANKING_TYPE_TITLES,
 } from "@/lib/ranking/rankingMeta";
-import { getPeriodLabel } from "@/lib/ranking/periods";
+import { getPeriodHeadline, getPeriodLabel } from "@/lib/ranking/periods";
 import type { GenreId, RankingPeriod, Video } from "@/types";
 import type { RankingReadiness, RankingType } from "@/types/ranking";
 
@@ -208,6 +209,16 @@ export function RankingPanel({
     filteredVideos.length > BUZZ_INITIAL_DISPLAY_COUNT &&
     !showAllBuzz;
 
+  const showViewContext =
+    homeUrlState.format !== "all" || homeUrlState.genre !== "all";
+
+  const panelTitle =
+    period === "24h" &&
+    homeUrlState.format === "all" &&
+    homeUrlState.genre === "all"
+      ? getPeriodHeadline(period)
+      : RANKING_TYPE_TITLES[ranking];
+
   const statusLine = loading
     ? "読み込み中..."
     : `${formatRankingUpdatedAt(dataFreshnessAt ?? updatedAt)} · ${getPeriodLabel(period)} · ${filteredVideos.length}件${ranking === "buzz" && visibleVideos.length < filteredVideos.length ? `（${visibleVideos.length}件表示）` : ""}`;
@@ -238,13 +249,17 @@ export function RankingPanel({
     >
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-zinc-50 sm:text-2xl">
-          {RANKING_TYPE_TITLES[ranking]}
+          {panelTitle}
         </h2>
         <p className="text-sm text-zinc-400 sm:text-base">
           {RANKING_TYPE_DESCRIPTIONS[ranking]}
         </p>
         <p className="text-sm text-zinc-500">{statusLine}</p>
       </div>
+
+      {showViewContext ? (
+        <RankingViewContextBanner homeUrlState={homeUrlState} ranking={ranking} />
+      ) : null}
 
       <RankingFiltersBar
         period={period}

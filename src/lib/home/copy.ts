@@ -6,6 +6,7 @@ export {
   RANKING_TYPE_DESCRIPTIONS,
   RANKING_TYPE_LABELS,
   RANKING_TYPE_TITLES,
+  RANKING_VIEW_DEFINITIONS,
 } from "@/lib/ranking/rankingMeta";
 
 /** @deprecated Use RANKING_TYPE_LABELS.buzz */

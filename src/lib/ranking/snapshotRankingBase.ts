@@ -119,7 +119,7 @@ function resolveContentKind(row: VideoRow): Video["contentKind"] {
   return "unknown";
 }
 
-function mapVideoRowToCandidate(
+export function mapVideoRowToVideo(
   row: VideoRow,
   latestSnapshot: VideoSnapshotRow | undefined,
   period: RankingPeriod,
@@ -188,7 +188,7 @@ export async function getBuzzRankingCandidatesFromDb(
   return rows
     .filter((row) => matchesGenre(row.category_id, genre))
     .map((row) =>
-      mapVideoRowToCandidate(
+      mapVideoRowToVideo(
         row,
         snapshotsByVideo.get(row.youtube_video_id)?.at(-1),
         period,
@@ -240,7 +240,7 @@ export async function getMeasuredRankingCandidates(
   return (videoRows ?? [])
     .filter((row) => matchesGenre(row.category_id, genre))
     .map((row) =>
-      mapVideoRowToCandidate(
+      mapVideoRowToVideo(
         row as VideoRow,
         snapshotsByVideo.get(row.youtube_video_id)?.at(-1),
         period,

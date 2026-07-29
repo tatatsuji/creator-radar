@@ -5,8 +5,10 @@ import {
 } from "@/lib/snapshots/deltaWindows";
 import { computeMeasuredSnapshotDelta } from "@/lib/snapshots/measuredDelta";
 import { fetchSnapshotsForVideo } from "@/lib/snapshots/repository";
-import { isSupabaseConfigured } from "@/lib/supabase/server";
-import { getVideoById } from "@/lib/youtube/rankings";
+import {
+  createSupabaseServerClient,
+  isSupabaseConfigured,
+} from "@/lib/supabase/server";
 
 export interface VideoDeltaEntry {
   window: DeltaWindow;
@@ -29,13 +31,23 @@ export interface VideoDeltasResponse {
 export async function getVideoDeltas(
   videoId: string,
 ): Promise<VideoDeltasResponse | null> {
-  const video = await getVideoById(videoId, "24h");
-  if (!video) {
-    return null;
-  }
-
   if (!isSupabaseConfigured()) {
     return buildInsufficientResponse(videoId);
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data: row, error } = await supabase
+    .from("videos")
+    .select("youtube_video_id")
+    .eq("youtube_video_id", videoId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`videos lookup failed: ${error.message}`);
+  }
+
+  if (!row) {
+    return null;
   }
 
   const snapshots = await fetchSnapshotsForVideo(videoId);
@@ -43,11 +55,13 @@ export async function getVideoDeltas(
     return buildInsufficientResponse(videoId);
   }
 
+  const currentViewCount = snapshots.at(-1)?.view_count ?? 0;
+
   const deltas: VideoDeltaEntry[] = DELTA_WINDOWS.map((window) => {
     const measured = computeMeasuredSnapshotDelta({
       windowHours: getDeltaWindowHours(window.id),
       snapshots,
-      currentViewCount: video.viewCount,
+      currentViewCount,
     });
 
     return {

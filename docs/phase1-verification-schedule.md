@@ -24,7 +24,7 @@
 | Buzz audit | GitHub Actions `phase1-verification.yml` | workflow_dispatch のみ | workflow_dispatch |
 | Verify env (初回確認) | GitHub Actions `phase1-verification.yml` | workflow_dispatch のみ | workflow_dispatch（**デフォルト**） ✅ 完了 |
 
-**Vercel Cron:** discovery は無効（measurement + legacy snapshot のみ）。二重実行なし。
+**Vercel Cron:** 無効（`vercel.json` crons 空配列）。discovery / measurement は GHA に集約。legacy `/api/cron/snapshots` は手動のみ。
 
 **Timezone:** すべて GitHub Actions cron は **UTC**。YouTube quota リセットは **太平洋時間 0:00**（PST 08:00 UTC / PDT 07:00 UTC）。`10 8 * * *` UTC は PST でも PDT でも quota リセット後に実行される。
 

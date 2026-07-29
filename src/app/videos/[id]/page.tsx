@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { VideoDetailView } from "@/components/video/VideoDetailView";
 import { getAnalysisPageDescription } from "@/lib/video/analysisDisplay";
 import { parseHomeUrlState } from "@/lib/home/urlState";
-import { getVideoById } from "@/lib/youtube/rankings";
+import { getVideoByIdFromDb } from "@/lib/videos/getVideoFromDb";
 
 interface VideoPageProps {
   params: Promise<{ id: string }>;
@@ -20,7 +20,7 @@ export async function generateMetadata({
   const homeUrlState = parseHomeUrlState({
     get: (key) => query[key as keyof typeof query] ?? null,
   });
-  const video = await getVideoById(id, homeUrlState.period);
+  const video = await getVideoByIdFromDb(id, homeUrlState.period);
 
   if (!video) {
     return {
@@ -56,7 +56,7 @@ export default async function VideoPage({ params, searchParams }: VideoPageProps
     get: (key) => query[key as keyof typeof query] ?? null,
   });
 
-  const video = await getVideoById(id, homeUrlState.period);
+  const video = await getVideoByIdFromDb(id, homeUrlState.period);
 
   if (!video) {
     notFound();

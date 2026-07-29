@@ -59,7 +59,7 @@ export default function AboutPage() {
           </section>
 
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
-            <h2 className="text-base font-semibold text-zinc-100">4つのランキング</h2>
+            <h2 className="text-base font-semibold text-zinc-100">5つのランキング</h2>
             <ul className="space-y-2">
               {(Object.keys(RANKING_TYPE_LABELS) as Array<keyof typeof RANKING_TYPE_LABELS>).map(
                 (type) => (

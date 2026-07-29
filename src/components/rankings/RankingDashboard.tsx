@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { HomeHero } from "@/components/home/HomeHero";
 import { RankingTypeGuide } from "@/components/home/RankingTypeGuide";
 import { RankingTypeTabs } from "@/components/home/RankingTypeTabs";
+import { RankingViewShortcuts } from "@/components/home/RankingViewShortcuts";
+import { TodayDiscoveryPanel } from "@/components/home/TodayDiscoveryPanel";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { RankingPanel } from "@/components/rankings/RankingPanel";
@@ -16,6 +18,7 @@ import {
 } from "@/lib/home/urlState";
 import type { GenreId, RankingPeriod, Video } from "@/types";
 import type { RankingReadiness, RankingType } from "@/types/ranking";
+import type { TodayDiscoveryPayload } from "@/lib/home/todayDiscovery";
 
 interface RankingDashboardProps {
   initialRanking?: RankingType;
@@ -28,6 +31,7 @@ interface RankingDashboardProps {
   initialReadiness?: RankingReadiness;
   initialAvailableGenres?: GenreId[];
   initialError?: string | null;
+  todayDiscovery: TodayDiscoveryPayload;
 }
 
 export function RankingDashboard({
@@ -46,6 +50,7 @@ export function RankingDashboard({
   },
   initialAvailableGenres = ["all"],
   initialError = null,
+  todayDiscovery,
 }: RankingDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -94,8 +99,17 @@ export function RankingDashboard({
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
         <section className="mb-6 space-y-5 sm:mb-8">
-          <HomeHero />
+          <HomeHero
+            dataFreshnessAt={
+              todayDiscovery.dataFreshnessAt ?? initialDataFreshnessAt
+            }
+          />
+          <TodayDiscoveryPanel
+            discovery={todayDiscovery}
+            homeUrlState={urlState}
+          />
           <RankingTypeTabs value={urlState.ranking} onChange={setRanking} />
+          <RankingViewShortcuts homeUrlState={urlState} />
           <RankingTypeGuide active={urlState.ranking} />
         </section>
 

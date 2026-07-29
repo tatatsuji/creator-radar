@@ -1,12 +1,12 @@
 "use client";
 
 import { RANKING_TYPE_TABS } from "@/lib/home/rankingType";
-import { RANKING_TYPE_ONE_LINERS } from "@/lib/ranking/rankingMeta";
-import type { RankingType } from "@/types/ranking";
+import { HOME_UI_RANKING_ONE_LINERS } from "@/lib/ranking/rankingMeta";
+import type { HomeUiRankingType } from "@/types/ranking";
 
 interface RankingTypeTabsProps {
-  value: RankingType;
-  onChange: (value: RankingType) => void;
+  value: HomeUiRankingType;
+  onChange: (value: HomeUiRankingType) => void;
 }
 
 export function RankingTypeTabs({ value, onChange }: RankingTypeTabsProps) {
@@ -42,7 +42,7 @@ export function RankingTypeTabs({ value, onChange }: RankingTypeTabsProps) {
                   selected ? "text-violet-100/90" : "text-zinc-500"
                 }`}
               >
-                {RANKING_TYPE_ONE_LINERS[tab.id]}
+                {HOME_UI_RANKING_ONE_LINERS[tab.id]}
               </span>
             </button>
           );

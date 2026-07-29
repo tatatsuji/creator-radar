@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { buildEarlyRiseRankingVideos } from "@/lib/ranking/engines/earlyRiseRanking";
+import { buildLaunchSpeedRankingVideos } from "@/lib/ranking/engines/launchSpeedRanking";
+import { buildPotentialRankingVideos } from "@/lib/ranking/engines/potentialRanking";
 import type { SnapshotEnrichedVideo } from "@/lib/ranking/snapshotRankingBase";
 import type { Video } from "@/types";
 
@@ -66,45 +68,99 @@ function makeEnriched(
       like_count: 10 + index,
       comment_count: 1,
       subscriber_count: 1000,
-      captured_at: new Date(
-        Date.now() - (snapshotCount - index) * 3 * 60 * 60 * 1000,
-      ).toISOString(),
+      captured_at: new Date(Date.now() - (snapshotCount - index) * 3 * 60 * 60 * 1000).toISOString(),
     })),
     promotionMetrics: metrics,
     promotionState: "RISING",
   };
 }
 
-describe("early rise ranking engine", () => {
+describe("snapshot ranking engines", () => {
   it("sorts early rise by early rise score", () => {
     const ranked = buildEarlyRiseRankingVideos([
-      makeEnriched(
-        "a",
-        new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        makeMetrics({
-          videoId: "a",
-          v1h: 1000,
-          v3h: 1500,
-          acceleration: 0.5,
-          velocityChangeAbsolute: 200,
-          velocityChangeRate: 0.5,
-        }),
-      ),
-      makeEnriched(
-        "b",
-        new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        makeMetrics({
-          videoId: "b",
-          v1h: 2000,
-          v3h: 3000,
-          acceleration: 1.2,
-          velocityChangeAbsolute: 800,
-          velocityChangeRate: 1.2,
-        }),
-      ),
+      makeEnriched("a", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), makeMetrics({
+        videoId: "a",
+        v1h: 1000,
+        v3h: 1500,
+        acceleration: 0.5,
+        velocityChangeAbsolute: 200,
+        velocityChangeRate: 0.5,
+      })),
+      makeEnriched("b", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), makeMetrics({
+        videoId: "b",
+        v1h: 2000,
+        v3h: 3000,
+        acceleration: 1.2,
+        velocityChangeAbsolute: 800,
+        velocityChangeRate: 1.2,
+      })),
     ]);
 
     expect(ranked[0]?.id).toBe("b");
     expect(ranked[0]?.rankingDisplay?.scoreName).toBe("加速スコア");
+  });
+
+  it("filters launch speed to recent videos", () => {
+    const ranked = buildLaunchSpeedRankingVideos([
+      makeEnriched("recent", new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), makeMetrics({
+        videoId: "recent",
+        v1h: 5000,
+      })),
+      makeEnriched("old", new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), makeMetrics({
+        videoId: "old",
+        v1h: 9000,
+      })),
+    ]);
+
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0]?.id).toBe("recent");
+  });
+
+  it("builds potential ranking with measured score", () => {
+    const ranked = buildPotentialRankingVideos([
+      makeEnriched("p1", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), makeMetrics({
+        videoId: "p1",
+        v1h: 3000,
+        v3h: 2800,
+        v24h: 2500,
+        acceleration: 0.2,
+        velocityChangeAbsolute: 100,
+        velocityChangeRate: 0.2,
+      }), 4),
+    ]);
+
+    expect(ranked[0]?.rankingDisplay?.scoreName).toBe("伸び予測スコア");
+    expect(ranked[0]?.rankingDisplay?.scoreValue).not.toBeNull();
+    expect(ranked[0]?.rankingDisplay?.rankReason).not.toContain("安定推移");
+  });
+
+  it("orders early rise and potential differently for the same pool", () => {
+    const entries = [
+      makeEnriched("spike", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), makeMetrics({
+        videoId: "spike",
+        v1h: 5000,
+        v3h: 2000,
+        acceleration: 2,
+        velocityChangeAbsolute: 3000,
+        velocityChangeRate: 2,
+        selfRollingAvg1h: 800,
+      }), 3),
+      makeEnriched("steady", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), makeMetrics({
+        videoId: "steady",
+        v1h: 2500,
+        v3h: 2400,
+        v24h: 2300,
+        acceleration: 0.1,
+        velocityChangeAbsolute: 100,
+        velocityChangeRate: 0.1,
+        selfRollingAvg1h: 2300,
+      }), 5),
+    ];
+
+    const earlyRise = buildEarlyRiseRankingVideos(entries);
+    const potential = buildPotentialRankingVideos(entries);
+
+    expect(earlyRise[0]?.id).toBe("spike");
+    expect(potential[0]?.id).toBe("steady");
   });
 });

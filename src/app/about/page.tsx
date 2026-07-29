@@ -2,10 +2,11 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import {
   CONTENT_FILTER_DEFINITIONS,
-  RANKING_TYPE_DESCRIPTIONS,
-  RANKING_TYPE_LABELS,
+  HOME_UI_RANKING_DESCRIPTIONS,
+  HOME_UI_RANKING_LABELS,
   SERVICE_TAGLINE,
 } from "@/lib/home/copy";
+import { HOME_UI_RANKING_TYPES } from "@/types/ranking";
 
 export const metadata = {
   title: "Creator Radarについて",
@@ -37,19 +38,17 @@ export default function AboutPage() {
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
             <h2 className="text-base font-semibold text-zinc-100">2つのランキング</h2>
             <ul className="space-y-3">
-              {(Object.keys(RANKING_TYPE_LABELS) as Array<keyof typeof RANKING_TYPE_LABELS>).map(
-                (type) => (
+              {HOME_UI_RANKING_TYPES.map((type) => (
                   <li
                     key={type}
                     className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
                   >
                     <p className="font-semibold text-zinc-200">
-                      {RANKING_TYPE_LABELS[type]}
+                      {HOME_UI_RANKING_LABELS[type]}
                     </p>
-                    <p className="mt-2 text-zinc-400">{RANKING_TYPE_DESCRIPTIONS[type]}</p>
+                    <p className="mt-2 text-zinc-400">{HOME_UI_RANKING_DESCRIPTIONS[type]}</p>
                   </li>
-                ),
-              )}
+                ))}
             </ul>
           </section>
 

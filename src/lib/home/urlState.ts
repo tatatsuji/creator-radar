@@ -1,5 +1,5 @@
 import { parseContentFormatFilter, type ContentFormatFilter } from "@/lib/home/contentFormat";
-import { parseRankingType, type RankingType } from "@/lib/home/rankingType";
+import { parseHomeRankingType, parseRankingType, type RankingType } from "@/lib/home/rankingType";
 import { parseRankingPeriod } from "@/lib/ranking/periods";
 import { isGenreId } from "@/types/observability";
 import type { GenreId, RankingPeriod } from "@/types";
@@ -34,7 +34,7 @@ export function parseGenreId(value?: string | null): GenreId {
 
 export function parseHomeUrlState(searchParams: SearchParamsReader): HomeUrlState {
   return {
-    ranking: parseRankingType(
+    ranking: parseHomeRankingType(
       searchParams.get("ranking"),
       searchParams.get("mode"),
     ),

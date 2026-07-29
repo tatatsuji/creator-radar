@@ -1,12 +1,16 @@
 import { buildBuzzRankingVideos } from "@/lib/ranking/engines/buzzRanking";
 import { buildEarlyRiseRankingVideos } from "@/lib/ranking/engines/earlyRiseRanking";
+import { buildLaunchSpeedRankingVideos } from "@/lib/ranking/engines/launchSpeedRanking";
+import { buildPotentialRankingVideos } from "@/lib/ranking/engines/potentialRanking";
 import { countEarlyRiseEligible } from "@/lib/ranking/earlyRiseScore";
+import { countPotentialEligible } from "@/lib/ranking/potentialScore";
 import { MIN_BUZZ_RANKING_TARGET, RANKING_ACCUMULATING_MESSAGES } from "@/lib/ranking/rankingMeta";
 import { getBuzzRankingFallbackCandidates } from "@/lib/ranking/buzzRankingFallback";
 import { getSnapshotMetricsSummary } from "@/lib/ranking/snapshotMetrics";
 import {
   enrichVideosWithSnapshots,
   getBuzzRankingCandidatesFromDb,
+  getMeasuredPromotionVideos,
   getMeasuredRankingCandidates,
   type SnapshotEnrichedVideo,
 } from "@/lib/ranking/snapshotRankingBase";
@@ -25,34 +29,47 @@ export interface BuiltRankingsResult {
   usedYouTubeFallback?: boolean;
 }
 
-function countEligibleVideos(enriched: SnapshotEnrichedVideo[]): number {
-  return countEarlyRiseEligible(enriched);
+function countEligibleVideos(
+  ranking: RankingType,
+  enriched: SnapshotEnrichedVideo[],
+): number {
+  switch (ranking) {
+    case "early_rise":
+      return countEarlyRiseEligible(enriched);
+    case "potential":
+      return countPotentialEligible(enriched);
+    case "launch_speed":
+      return getMeasuredPromotionVideos(enriched).length;
+    default:
+      return 0;
+  }
 }
 
-function assessBuzzReadiness(totalCount: number): RankingReadiness {
-  return {
-    status: "ready",
-    eligibleCount: totalCount,
-    requiredCount: MIN_BUZZ_RANKING_TARGET,
-    message:
-      totalCount < MIN_BUZZ_RANKING_TARGET
-        ? `条件を満たす動画が${totalCount}件です（目標${MIN_BUZZ_RANKING_TARGET}件）。品質条件は緩めていません。`
-        : "",
-  };
-}
-
-function assessEarlyRiseReadiness(
+function assessReadiness(
+  ranking: RankingType,
   enriched: SnapshotEnrichedVideo[],
   totalCount: number,
 ): RankingReadiness {
-  const eligibleCount = countEligibleVideos(enriched);
+  if (ranking === "buzz") {
+    return {
+      status: "ready",
+      eligibleCount: totalCount,
+      requiredCount: MIN_BUZZ_RANKING_TARGET,
+      message:
+        totalCount < MIN_BUZZ_RANKING_TARGET
+          ? `条件を満たす動画が${totalCount}件です（目標${MIN_BUZZ_RANKING_TARGET}件）。品質条件は緩めていません。`
+          : "",
+    };
+  }
+
+  const eligibleCount = countEligibleVideos(ranking, enriched);
 
   if (eligibleCount < MIN_MEASURED_VIDEOS_FOR_SNAPSHOT_RANKING) {
     return {
       status: "accumulating",
       eligibleCount,
       requiredCount: MIN_MEASURED_VIDEOS_FOR_SNAPSHOT_RANKING,
-      message: RANKING_ACCUMULATING_MESSAGES.early_rise,
+      message: RANKING_ACCUMULATING_MESSAGES[ranking],
     };
   }
 
@@ -83,7 +100,7 @@ export async function buildRankings(
     return {
       ranking,
       videos,
-      readiness: assessBuzzReadiness(candidates.length),
+      readiness: assessReadiness(ranking, [], candidates.length),
       metricsSummary: getSnapshotMetricsSummary(videos),
       usedYouTubeFallback,
     };
@@ -91,7 +108,7 @@ export async function buildRankings(
 
   const candidates = await getMeasuredRankingCandidates(period, genre);
   const enriched = await enrichVideosWithSnapshots(candidates);
-  const readiness = assessEarlyRiseReadiness(enriched, candidates.length);
+  const readiness = assessReadiness(ranking, enriched, candidates.length);
 
   if (readiness.status === "accumulating") {
     return {
@@ -99,13 +116,27 @@ export async function buildRankings(
       videos: [],
       readiness,
       metricsSummary: {
-        measured: countEligibleVideos(enriched),
+        measured: countEligibleVideos(ranking, enriched),
         estimated: 0,
       },
     };
   }
 
-  const videos = buildEarlyRiseRankingVideos(enriched);
+  let videos: Video[] = [];
+
+  switch (ranking) {
+    case "early_rise":
+      videos = buildEarlyRiseRankingVideos(enriched);
+      break;
+    case "launch_speed":
+      videos = buildLaunchSpeedRankingVideos(enriched);
+      break;
+    case "potential":
+      videos = buildPotentialRankingVideos(enriched);
+      break;
+    default:
+      videos = [];
+  }
 
   return {
     ranking,

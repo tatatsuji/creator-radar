@@ -43,6 +43,17 @@ describe("home url state", () => {
     });
   });
 
+  it("maps hidden ranking params to buzz on home", () => {
+    expect(
+      parseHomeUrlState(params({ ranking: "launch_speed", period: "7d" })),
+    ).toEqual({
+      ranking: "buzz",
+      period: "7d",
+      genre: "all",
+      format: "all",
+    });
+  });
+
   it("builds home href with non-default filters", () => {
     expect(
       buildHomeHref({

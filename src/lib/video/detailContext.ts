@@ -27,12 +27,18 @@ export interface VideoDetailRankingContext {
 const RANKING_USER_QUESTIONS: Record<RankingType, string> = {
   buzz: "なぜ今、話題になっている？",
   early_rise: "なぜ「伸び始め」に入った？",
+  launch_speed: "なぜ初速が速い？",
+  potential: "なぜ「伸びそう」と判定された？",
 };
 
 const RANKING_REVISIT_HINTS: Record<RankingType, string> = {
   buzz: "話題の動画は日々入れ替わります。明日また開くと、新しいトレンドが見つかります。",
   early_rise:
     "加速は数日で変わります。明日また確認すると、伸びが続いているか一目で分かります。",
+  launch_speed:
+    "初速は公開直後が勝負。数時間〜1日後の変化も、この画面で追えます。",
+  potential:
+    "伸び予兆は計測が進むほど精度が上がります。明日のスコア変化もチェックしてみてください。",
 };
 
 function getDetailScoreMetric(
@@ -71,6 +77,10 @@ function getTakeaway(
       buzz: "実測で再生増加が確認できています。勢いが続いているか、グラフで追跡できます。",
       early_rise:
         "実測データ上、再生速度が上がり始めています。加速が続くかグラフで確認しましょう。",
+      launch_speed:
+        "公開直後から実測で高い再生速度です。初速の推移はグラフで追えます。",
+      potential:
+        "実測速度・加速度から伸びの兆候が見えています。計測が進むほど精度が上がります。",
     };
     return messages[ranking];
   }
@@ -83,6 +93,10 @@ function getTakeaway(
     buzz: "推定指標から勢いが高い状態です。実測グラフが蓄積されると、より正確に追跡できます。",
     early_rise:
       "推定では加速の兆候があります。実測データが増えると、伸び始めの判定精度が上がります。",
+    launch_speed:
+      "推定では初速が高い傾向です。公開直後の実測が入ると、より確かな判断ができます。",
+    potential:
+      "推定スコアから伸びの可能性が示されています。計測が進むと予測精度が上がります。",
   };
 
   return estimatedMessages[ranking];

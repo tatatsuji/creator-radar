@@ -1,14 +1,14 @@
 "use client";
 
 import {
-  RANKING_TYPE_DESCRIPTIONS,
-  RANKING_TYPE_LABELS,
-  RANKING_TYPE_ONE_LINERS,
+  HOME_UI_RANKING_DESCRIPTIONS,
+  HOME_UI_RANKING_LABELS,
+  HOME_UI_RANKING_ONE_LINERS,
 } from "@/lib/ranking/rankingMeta";
-import { RANKING_TYPES, type RankingType } from "@/types/ranking";
+import { HOME_UI_RANKING_TYPES, type HomeUiRankingType } from "@/types/ranking";
 
 interface RankingTypeGuideProps {
-  active: RankingType;
+  active: HomeUiRankingType;
 }
 
 export function RankingTypeGuide({ active }: RankingTypeGuideProps) {
@@ -21,7 +21,7 @@ export function RankingTypeGuide({ active }: RankingTypeGuideProps) {
         2つのランキング
       </p>
       <ul className="grid gap-2 sm:grid-cols-2">
-        {RANKING_TYPES.map((type) => {
+        {HOME_UI_RANKING_TYPES.map((type) => {
           const selected = type === active;
           return (
             <li
@@ -37,14 +37,14 @@ export function RankingTypeGuide({ active }: RankingTypeGuideProps) {
                   selected ? "text-violet-100" : "text-zinc-300"
                 }`}
               >
-                {RANKING_TYPE_LABELS[type]}
+                {HOME_UI_RANKING_LABELS[type]}
               </p>
               <p className="mt-0.5 text-xs text-violet-300/90">
-                {RANKING_TYPE_ONE_LINERS[type]}
+                {HOME_UI_RANKING_ONE_LINERS[type]}
               </p>
               {selected ? (
                 <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-                  {RANKING_TYPE_DESCRIPTIONS[type]}
+                  {HOME_UI_RANKING_DESCRIPTIONS[type]}
                 </p>
               ) : null}
             </li>

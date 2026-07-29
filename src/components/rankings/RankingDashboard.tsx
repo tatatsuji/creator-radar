@@ -17,7 +17,7 @@ import {
   type HomeUrlState,
 } from "@/lib/home/urlState";
 import type { GenreId, RankingPeriod, Video } from "@/types";
-import type { RankingReadiness, RankingType } from "@/types/ranking";
+import type { HomeUiRankingType, RankingReadiness, RankingType } from "@/types/ranking";
 import type { TodayDiscoveryPayload } from "@/lib/home/todayDiscovery";
 
 interface RankingDashboardProps {
@@ -77,7 +77,7 @@ export function RankingDashboard({
   );
 
   const setRanking = useCallback(
-    (ranking: RankingType) => {
+    (ranking: HomeUiRankingType) => {
       updateHomeUrl({ ranking });
     },
     [updateHomeUrl],

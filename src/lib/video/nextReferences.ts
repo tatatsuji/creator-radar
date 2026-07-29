@@ -1,10 +1,10 @@
 import { genres } from "@/data/genres";
 import { buildHomeHref, type HomeUrlState } from "@/lib/home/urlState";
 import {
-  RANKING_TYPE_LABELS,
-  RANKING_TYPE_ONE_LINERS,
+  HOME_UI_RANKING_LABELS,
+  HOME_UI_RANKING_ONE_LINERS,
 } from "@/lib/ranking/rankingMeta";
-import type { RankingType } from "@/types/ranking";
+import type { HomeUiRankingType } from "@/types/ranking";
 
 export interface NextReferenceLink {
   id: string;
@@ -13,14 +13,14 @@ export interface NextReferenceLink {
   href: string;
 }
 
-const OTHER_RANKING: RankingType = "early_rise";
+const OTHER_RANKING: HomeUiRankingType = "early_rise";
 
 export function getVideoNextReferences(
   homeUrlState: HomeUrlState,
 ): NextReferenceLink[] {
   const links: NextReferenceLink[] = [];
   const currentRanking = homeUrlState.ranking;
-  const otherRanking: RankingType =
+  const otherRanking: HomeUiRankingType =
     currentRanking === "buzz" ? OTHER_RANKING : "buzz";
 
   links.push({
@@ -37,8 +37,8 @@ export function getVideoNextReferences(
 
   links.push({
     id: `ranking-${otherRanking}`,
-    label: `${RANKING_TYPE_LABELS[otherRanking]}を見る`,
-    description: RANKING_TYPE_ONE_LINERS[otherRanking],
+    label: `${HOME_UI_RANKING_LABELS[otherRanking]}を見る`,
+    description: HOME_UI_RANKING_ONE_LINERS[otherRanking],
     href: buildHomeHref({
       ...homeUrlState,
       ranking: otherRanking,

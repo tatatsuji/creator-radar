@@ -15,13 +15,13 @@ import { buildVideoDetailHref, type HomeUrlState } from "@/lib/home/urlState";
 import { MetricsSourceBadge } from "@/components/ui/MetricsSourceBadge";
 import { RemoteImage } from "@/components/ui/RemoteImage";
 import type { RankingPeriod, Video } from "@/types";
-import type { RankingType } from "@/types/ranking";
+import type { HomeUiRankingType } from "@/types/ranking";
 
 interface VideoCardProps {
   video: Video;
   rank: number;
   period: RankingPeriod;
-  ranking: RankingType;
+  ranking: HomeUiRankingType;
   homeUrlState: HomeUrlState;
   isSearchResult?: boolean;
 }

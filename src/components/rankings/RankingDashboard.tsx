@@ -17,11 +17,11 @@ import {
   type HomeUrlState,
 } from "@/lib/home/urlState";
 import type { GenreId, RankingPeriod, Video } from "@/types";
-import type { HomeUiRankingType, RankingReadiness, RankingType } from "@/types/ranking";
+import type { HomeUiRankingType, RankingReadiness } from "@/types/ranking";
 import type { TodayDiscoveryPayload } from "@/lib/home/todayDiscovery";
 
 interface RankingDashboardProps {
-  initialRanking?: RankingType;
+  initialRanking?: HomeUiRankingType;
   initialVideos: Video[];
   initialPeriod?: RankingPeriod;
   initialGenre?: GenreId;

@@ -10,7 +10,7 @@ import { VideoMeasuredPanel } from "@/components/video/VideoMeasuredPanel";
 import { VideoNextReferences } from "@/components/video/VideoNextReferences";
 import { VideoRankingContext } from "@/components/video/VideoRankingContext";
 import { buildHomeHref, type HomeUrlState } from "@/lib/home/urlState";
-import { RANKING_TYPE_LABELS } from "@/lib/ranking/rankingMeta";
+import { HOME_UI_RANKING_LABELS } from "@/lib/ranking/rankingMeta";
 import type { RankingPeriod, Video } from "@/types";
 
 interface VideoDetailViewProps {
@@ -26,7 +26,7 @@ export function VideoDetailView({
 }: VideoDetailViewProps) {
   const youtubeUrl = `https://www.youtube.com/watch?v=${video.id}`;
   const rankingHref = buildHomeHref(homeUrlState);
-  const rankingLabel = RANKING_TYPE_LABELS[homeUrlState.ranking];
+  const rankingLabel = HOME_UI_RANKING_LABELS[homeUrlState.ranking];
 
   return (
     <div className="app-background flex min-h-screen flex-col pb-24 sm:pb-0">

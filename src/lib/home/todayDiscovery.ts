@@ -1,18 +1,18 @@
 import { getCardTrendInsight } from "@/lib/ranking/cardDisplay";
 import { getRankingsPayload } from "@/lib/ranking/getRankingsPayload";
 import {
-  RANKING_TYPE_LABELS,
-  RANKING_TYPE_ONE_LINERS,
+  HOME_UI_RANKING_LABELS,
+  HOME_UI_RANKING_ONE_LINERS,
 } from "@/lib/ranking/rankingMeta";
 import { matchesContentFormatFilter } from "@/lib/home/contentFormat";
 import type { Video } from "@/types";
-import type { RankingType } from "@/types/ranking";
+import type { HomeUiRankingType } from "@/types/ranking";
 
 const TOKYO_TIMEZONE = "Asia/Tokyo";
 
 export interface TodayDiscoveryItem {
   id: string;
-  ranking: RankingType | "shorts" | "live";
+  ranking: HomeUiRankingType | "shorts" | "live";
   rankingLabel: string;
   roleLabel: string;
   video: Video;
@@ -48,14 +48,14 @@ function pickTopVideo(
 }
 
 function buildRankingItem(
-  ranking: RankingType,
+  ranking: HomeUiRankingType,
   video: Video,
 ): TodayDiscoveryItem {
   return {
     id: `${ranking}-${video.id}`,
     ranking,
-    rankingLabel: RANKING_TYPE_LABELS[ranking],
-    roleLabel: RANKING_TYPE_ONE_LINERS[ranking],
+    rankingLabel: HOME_UI_RANKING_LABELS[ranking],
+    roleLabel: HOME_UI_RANKING_ONE_LINERS[ranking],
     video,
     insight: getCardTrendInsight(video, ranking, "24h"),
   };

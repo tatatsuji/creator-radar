@@ -8,7 +8,7 @@ import { getVideoByIdFromDb } from "@/lib/videos/getVideoFromDb";
 
 interface VideoPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ period?: string; genre?: string; mode?: string }>;
+  searchParams: Promise<{ period?: string; genre?: string; mode?: string; ranking?: string }>;
 }
 
 export async function generateMetadata({

@@ -5,12 +5,12 @@ import {
 } from "@/lib/video/analysisDisplay";
 import { getVideoDetailRankingContext } from "@/lib/video/detailContext";
 import type { RankingPeriod, Video } from "@/types";
-import type { RankingType } from "@/types/ranking";
+import type { HomeUiRankingType } from "@/types/ranking";
 
 interface VideoAnalysisInsightProps {
   video: Video;
   period: RankingPeriod;
-  ranking?: RankingType;
+  ranking?: HomeUiRankingType;
 }
 
 export function VideoAnalysisInsight({

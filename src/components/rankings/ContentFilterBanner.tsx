@@ -1,13 +1,13 @@
 import { genres } from "@/data/genres";
 import { CONTENT_FORMAT_FILTERS } from "@/lib/home/contentFormat";
 import type { HomeUrlState } from "@/lib/home/urlState";
-import { RANKING_TYPE_TITLES } from "@/lib/ranking/rankingMeta";
+import { HOME_UI_RANKING_TITLES } from "@/lib/ranking/rankingMeta";
 import { getActiveContentFilter } from "@/lib/ranking/rankingViewContext";
-import type { RankingType } from "@/types/ranking";
+import type { HomeUiRankingType } from "@/types/ranking";
 
 interface ContentFilterBannerProps {
   homeUrlState: HomeUrlState;
-  ranking: RankingType;
+  ranking: HomeUiRankingType;
 }
 
 export function ContentFilterBanner({
@@ -32,12 +32,12 @@ export function ContentFilterBanner({
 
   const title =
     filter.id === "genre" && genreLabel
-      ? `${genreLabel} · ${RANKING_TYPE_TITLES[ranking]}`
+      ? `${genreLabel} · ${HOME_UI_RANKING_TITLES[ranking]}`
       : filter.id === "shorts"
-        ? `Shorts · ${RANKING_TYPE_TITLES[ranking]}`
+        ? `Shorts · ${HOME_UI_RANKING_TITLES[ranking]}`
         : filter.id === "live"
-          ? `ライブ · ${RANKING_TYPE_TITLES[ranking]}`
-          : RANKING_TYPE_TITLES[ranking];
+          ? `ライブ · ${HOME_UI_RANKING_TITLES[ranking]}`
+          : HOME_UI_RANKING_TITLES[ranking];
 
   return (
     <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] px-4 py-3 sm:px-5 sm:py-4">

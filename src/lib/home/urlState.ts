@@ -1,5 +1,6 @@
 import { parseContentFormatFilter, type ContentFormatFilter } from "@/lib/home/contentFormat";
-import { parseHomeRankingType, parseRankingType, type RankingType } from "@/lib/home/rankingType";
+import { parseHomeRankingType } from "@/lib/home/rankingType";
+import type { HomeUiRankingType } from "@/types/ranking";
 import { parseRankingPeriod } from "@/lib/ranking/periods";
 import { isGenreId } from "@/types/observability";
 import type { GenreId, RankingPeriod } from "@/types";
@@ -7,7 +8,7 @@ import type { GenreId, RankingPeriod } from "@/types";
 export type { ContentFormatFilter };
 
 export interface HomeUrlState {
-  ranking: RankingType;
+  ranking: HomeUiRankingType;
   period: RankingPeriod;
   genre: GenreId;
   format: ContentFormatFilter;

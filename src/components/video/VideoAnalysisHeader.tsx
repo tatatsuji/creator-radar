@@ -6,7 +6,7 @@ import {
   formatSubscriberCount,
 } from "@/lib/format";
 import type { HomeUrlState } from "@/lib/home/urlState";
-import { RANKING_TYPE_LABELS } from "@/lib/ranking/rankingMeta";
+import { HOME_UI_RANKING_LABELS } from "@/lib/ranking/rankingMeta";
 import type { RankingPeriod, Video } from "@/types";
 
 interface VideoAnalysisHeaderProps {
@@ -20,7 +20,7 @@ export function VideoAnalysisHeader({
   period,
   homeUrlState,
 }: VideoAnalysisHeaderProps) {
-  const rankingLabel = RANKING_TYPE_LABELS[homeUrlState.ranking];
+  const rankingLabel = HOME_UI_RANKING_LABELS[homeUrlState.ranking];
   const contentKindLabel =
     video.contentKind === "short"
       ? "Shorts"

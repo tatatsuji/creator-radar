@@ -10,7 +10,7 @@ import {
 } from "@/lib/ranking/rankingMeta";
 import { formatRankingScoreValue } from "@/lib/video/detailDisplay";
 import type { RankingPeriod, Video } from "@/types";
-import type { RankingType } from "@/types/ranking";
+import { normalizeHomeUiRanking, type HomeUiRankingType, type RankingType } from "@/types/ranking";
 
 export interface VideoDetailRankingContext {
   rankingLabel: string;
@@ -107,18 +107,19 @@ export function getVideoDetailRankingContext(
   ranking: RankingType,
   period: RankingPeriod,
 ): VideoDetailRankingContext {
-  const scoreMetric = getDetailScoreMetric(video, ranking);
+  const uiRanking: HomeUiRankingType = normalizeHomeUiRanking(ranking);
+  const scoreMetric = getDetailScoreMetric(video, uiRanking);
 
   return {
-    rankingLabel: RANKING_TYPE_LABELS[ranking],
-    rankingTitle: RANKING_TYPE_TITLES[ranking],
-    oneLiner: RANKING_TYPE_ONE_LINERS[ranking],
-    whyHere: getCardTrendInsight(video, ranking, period),
-    userQuestion: RANKING_USER_QUESTIONS[ranking],
+    rankingLabel: RANKING_TYPE_LABELS[uiRanking],
+    rankingTitle: RANKING_TYPE_TITLES[uiRanking],
+    oneLiner: RANKING_TYPE_ONE_LINERS[uiRanking],
+    whyHere: getCardTrendInsight(video, uiRanking, period),
+    userQuestion: RANKING_USER_QUESTIONS[uiRanking],
     scoreLabel: scoreMetric.label,
     scoreValue: scoreMetric.value,
-    takeaway: getTakeaway(video, ranking, period),
-    revisitHint: RANKING_REVISIT_HINTS[ranking],
+    takeaway: getTakeaway(video, uiRanking, period),
+    revisitHint: RANKING_REVISIT_HINTS[uiRanking],
   };
 }
 
@@ -126,6 +127,10 @@ export function getRankingAwarePageDescription(
   video: Video,
   ranking: RankingType,
 ): string {
-  const context = getVideoDetailRankingContext(video, ranking, video.metrics.period);
+  const context = getVideoDetailRankingContext(
+    video,
+    normalizeHomeUiRanking(ranking),
+    video.metrics.period,
+  );
   return `${video.channel.name} · ${context.whyHere} · ${context.scoreLabel} ${context.scoreValue}`;
 }

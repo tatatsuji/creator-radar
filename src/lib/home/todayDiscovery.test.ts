@@ -45,5 +45,10 @@ describe("buildTodayDiscoveryFromVideos", () => {
     expect(payload.items.some((item) => item.ranking === "early_rise")).toBe(true);
     expect(payload.items.some((item) => item.ranking === "shorts")).toBe(true);
     expect(payload.summary).toContain("今日");
+    expect(
+      payload.items.every((item) =>
+        ["buzz", "early_rise", "shorts", "live"].includes(item.ranking),
+      ),
+    ).toBe(true);
   });
 });

@@ -40,6 +40,11 @@ export const HOME_UI_RANKING_DESCRIPTIONS: Record<HomeUiRankingType, string> = {
   early_rise: RANKING_TYPE_DESCRIPTIONS.early_rise,
 };
 
+export const HOME_UI_RANKING_TITLES: Record<HomeUiRankingType, string> = {
+  buzz: RANKING_TYPE_TITLES.buzz,
+  early_rise: RANKING_TYPE_TITLES.early_rise,
+};
+
 export const RANKING_TYPE_ONE_LINERS: Record<RankingType, string> = {
   buzz: "今、話題になっている動画",
   early_rise: "再生が加速し始めた動画",

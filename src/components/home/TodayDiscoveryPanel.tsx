@@ -9,7 +9,7 @@ import {
   type HomeUrlState,
 } from "@/lib/home/urlState";
 import type { TodayDiscoveryPayload } from "@/lib/home/todayDiscovery";
-import type { RankingType } from "@/types/ranking";
+import type { HomeUiRankingType } from "@/types/ranking";
 
 interface TodayDiscoveryPanelProps {
   discovery: TodayDiscoveryPayload;
@@ -21,7 +21,7 @@ function buildDiscoveryDetailHref(
   ranking: TodayDiscoveryPayload["items"][number]["ranking"],
   homeUrlState: HomeUrlState,
 ): string {
-  const rankingType: RankingType =
+  const rankingType: HomeUiRankingType =
     ranking === "shorts" || ranking === "live" ? "buzz" : ranking;
 
   return buildVideoDetailHref(videoId, {

@@ -13,16 +13,16 @@ import { matchesContentFormatFilter, type ContentFormatFilter } from "@/lib/home
 import type { HomeUrlState } from "@/lib/home/urlState";
 import {
   BUZZ_INITIAL_DISPLAY_COUNT,
-  RANKING_TYPE_DESCRIPTIONS,
-  RANKING_TYPE_TITLES,
+  HOME_UI_RANKING_DESCRIPTIONS,
+  HOME_UI_RANKING_TITLES,
 } from "@/lib/ranking/rankingMeta";
 import { getPeriodHeadline, getPeriodLabel } from "@/lib/ranking/periods";
 import type { GenreId, RankingPeriod, Video } from "@/types";
-import type { RankingReadiness, RankingType } from "@/types/ranking";
+import type { HomeUiRankingType, RankingReadiness } from "@/types/ranking";
 
 interface RankingPanelProps {
   active: boolean;
-  ranking: RankingType;
+  ranking: HomeUiRankingType;
   searchQuery: string;
   period: RankingPeriod;
   genre: GenreId;
@@ -217,7 +217,7 @@ export function RankingPanel({
     homeUrlState.format === "all" &&
     homeUrlState.genre === "all"
       ? getPeriodHeadline(period)
-      : RANKING_TYPE_TITLES[ranking];
+      : HOME_UI_RANKING_TITLES[ranking];
 
   const statusLine = loading
     ? "読み込み中..."
@@ -231,8 +231,8 @@ export function RankingPanel({
         aria-labelledby={`home-ranking-tab-${ranking}`}
       >
         <DataAccumulatingPanel
-          title={RANKING_TYPE_TITLES[ranking]}
-          description={RANKING_TYPE_DESCRIPTIONS[ranking]}
+          title={HOME_UI_RANKING_TITLES[ranking]}
+          description={HOME_UI_RANKING_DESCRIPTIONS[ranking]}
           readiness={readiness}
           onViewBuzz={onViewBuzz}
         />
@@ -252,7 +252,7 @@ export function RankingPanel({
           {panelTitle}
         </h2>
         <p className="text-sm text-zinc-400 sm:text-base">
-          {RANKING_TYPE_DESCRIPTIONS[ranking]}
+          {HOME_UI_RANKING_DESCRIPTIONS[ranking]}
         </p>
         <p className="text-sm text-zinc-500">{statusLine}</p>
       </div>

@@ -52,6 +52,9 @@ describe("home url state", () => {
       genre: "all",
       format: "all",
     });
+    expect(parseHomeUrlState(params({ ranking: "potential" })).ranking).toBe(
+      "buzz",
+    );
   });
 
   it("builds home href with non-default filters", () => {

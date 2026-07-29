@@ -2,6 +2,7 @@ import { buildBuzzRankingVideos } from "@/lib/ranking/engines/buzzRanking";
 import { buildEarlyRiseRankingVideos } from "@/lib/ranking/engines/earlyRiseRanking";
 import { buildLaunchSpeedRankingVideos } from "@/lib/ranking/engines/launchSpeedRanking";
 import { buildPotentialRankingVideos } from "@/lib/ranking/engines/potentialRanking";
+import { buildSubscriberRatioRankingVideos } from "@/lib/ranking/engines/subscriberRatioRanking";
 import { countEarlyRiseEligible } from "@/lib/ranking/earlyRiseScore";
 import { countPotentialEligible } from "@/lib/ranking/potentialScore";
 import { MIN_BUZZ_RANKING_TARGET, RANKING_ACCUMULATING_MESSAGES } from "@/lib/ranking/rankingMeta";
@@ -101,6 +102,26 @@ export async function buildRankings(
       ranking,
       videos,
       readiness: assessReadiness(ranking, [], candidates.length),
+      metricsSummary: getSnapshotMetricsSummary(videos),
+      usedYouTubeFallback,
+    };
+  }
+
+  if (ranking === "subscriber_ratio") {
+    const dbCandidates = await getBuzzRankingCandidatesFromDb(period, genre);
+    let usedYouTubeFallback = false;
+    let candidates = dbCandidates;
+
+    if (candidates.length === 0) {
+      usedYouTubeFallback = true;
+      candidates = await getBuzzRankingFallbackCandidates(period, genre);
+    }
+
+    const videos = await buildSubscriberRatioRankingVideos(candidates, period);
+    return {
+      ranking,
+      videos,
+      readiness: assessReadiness("buzz", [], candidates.length),
       metricsSummary: getSnapshotMetricsSummary(videos),
       usedYouTubeFallback,
     };

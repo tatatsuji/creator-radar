@@ -3,6 +3,7 @@ export const RANKING_TYPES = [
   "early_rise",
   "launch_speed",
   "potential",
+  "subscriber_ratio",
 ] as const;
 
 export type RankingType = (typeof RANKING_TYPES)[number];

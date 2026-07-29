@@ -105,11 +105,13 @@ function latestFreshness(timestamps: Array<string | null>): string | null {
 }
 
 export async function getTodayDiscoveryPayload(): Promise<TodayDiscoveryPayload> {
-  const [buzz, earlyRise, launchSpeed, potential] = await Promise.all([
+  const [buzz, earlyRise, launchSpeed, potential, subscriberRatio] =
+    await Promise.all([
     getRankingsPayload("buzz", "24h", "all"),
     getRankingsPayload("early_rise", "24h", "all"),
     getRankingsPayload("launch_speed", "24h", "all"),
     getRankingsPayload("potential", "24h", "all"),
+    getRankingsPayload("subscriber_ratio", "24h", "all"),
   ]);
 
   const items: TodayDiscoveryItem[] = [];
@@ -143,6 +145,14 @@ export async function getTodayDiscoveryPayload(): Promise<TodayDiscoveryPayload>
     items.push(buildRankingItem("potential", potentialTop));
   }
 
+  const subscriberTop = pickTopVideo(subscriberRatio.videos);
+  if (
+    subscriberTop &&
+    !items.some((item) => item.video.id === subscriberTop.id)
+  ) {
+    items.push(buildRankingItem("subscriber_ratio", subscriberTop));
+  }
+
   const shortsTop = pickTopVideo(buzz.videos, "short");
   if (shortsTop && !items.some((item) => item.video.id === shortsTop.id)) {
     items.push(buildFormatItem("shorts", shortsTop));
@@ -160,6 +170,7 @@ export async function getTodayDiscoveryPayload(): Promise<TodayDiscoveryPayload>
       earlyRise.dataFreshnessAt,
       launchSpeed.dataFreshnessAt,
       potential.dataFreshnessAt,
+      subscriberRatio.dataFreshnessAt,
     ]),
     items: items.slice(0, 6),
     summary: buildSummary(items),

@@ -29,6 +29,7 @@ const RANKING_USER_QUESTIONS: Record<RankingType, string> = {
   early_rise: "なぜ「伸び始め」に入った？",
   launch_speed: "なぜ初速が速い？",
   potential: "なぜ「伸びそう」と判定された？",
+  subscriber_ratio: "なぜ登録者比が突出している？",
 };
 
 const RANKING_REVISIT_HINTS: Record<RankingType, string> = {
@@ -39,6 +40,8 @@ const RANKING_REVISIT_HINTS: Record<RankingType, string> = {
     "初速は公開直後が勝負。数時間〜1日後の変化も、この画面で追えます。",
   potential:
     "伸び予兆は計測が進むほど精度が上がります。明日のスコア変化もチェックしてみてください。",
+  subscriber_ratio:
+    "登録者比の異常値は、拡散のチャンスが来ているサイン。明日も同チャンネルの動きを追うと参考になります。",
 };
 
 function getDetailScoreMetric(
@@ -81,6 +84,8 @@ function getTakeaway(
         "公開直後から実測で高い再生速度です。初速の推移はグラフで追えます。",
       potential:
         "実測速度・加速度から伸びの兆候が見えています。計測が進むほど精度が上がります。",
+      subscriber_ratio:
+        "登録者数に対して再生が突出しています。小規模チャンネルでも届き方が強い状態です。",
     };
     return messages[ranking];
   }
@@ -97,6 +102,8 @@ function getTakeaway(
       "推定では初速が高い傾向です。公開直後の実測が入ると、より確かな判断ができます。",
     potential:
       "推定スコアから伸びの可能性が示されています。計測が進むと予測精度が上がります。",
+    subscriber_ratio:
+      "推定データ上、登録者比が高い傾向です。実測が増えると異常値の精度が上がります。",
   };
 
   return estimatedMessages[ranking];

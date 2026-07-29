@@ -76,10 +76,10 @@ export function RankingViewShortcuts({ homeUrlState }: RankingViewShortcutsProps
   return (
     <div
       className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5"
-      aria-label="7つのランキング視点"
+      aria-label="8つのランキング視点"
     >
       <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-        7つの視点で見る
+        8つの視点で見る
       </p>
       <ul className="flex flex-wrap gap-2">
         {RANKING_VIEW_DEFINITIONS.map((view) => {

@@ -28,13 +28,13 @@ export default function AboutPage() {
             <h2 className="text-base font-semibold text-zinc-100">できること</h2>
             <ul className="list-disc space-y-2 pl-5 text-zinc-400">
               <li>ホームの「今日の発見」で、いま注目の動画を数分で把握できます</li>
-              <li>4つのランキング（バズ・伸び始め・初速・伸びそう）と、ジャンル / Shorts / ライブの視点で伸びを比較できます</li>
+              <li>5つのランキング（バズ・伸び始め・初速・伸びそう・登録者比）と、ジャンル / Shorts / ライブの視点で伸びを比較できます</li>
               <li>動画詳細で「なぜ伸びたか」「真似できるポイント」「次に参考にすべきもの」を確認できます</li>
             </ul>
           </section>
 
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
-            <h2 className="text-base font-semibold text-zinc-100">7つの視点</h2>
+            <h2 className="text-base font-semibold text-zinc-100">8つの視点</h2>
             <ul className="space-y-3">
               {RANKING_VIEW_DEFINITIONS.map((view) => (
                 <li
@@ -53,7 +53,7 @@ export default function AboutPage() {
             <h2 className="text-base font-semibold text-zinc-100">使い方</h2>
             <ol className="list-decimal space-y-2 pl-5 text-zinc-400">
               <li>ホームで「今日の発見」を確認し、気になる動画をタップします</li>
-              <li>4つのランキングタブや7つの視点から、目的に合った一覧を選びます</li>
+              <li>5つのランキングタブや8つの視点から、目的に合った一覧を選びます</li>
               <li>動画詳細で伸びの理由・真似ポイント・次に見るべきランキングを確認します</li>
             </ol>
           </section>

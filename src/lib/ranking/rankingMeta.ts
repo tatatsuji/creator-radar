@@ -10,6 +10,7 @@ export const RANKING_TYPE_LABELS: Record<RankingType, string> = {
   early_rise: "伸び始め",
   launch_speed: "初速",
   potential: "伸びそう",
+  subscriber_ratio: "登録者比",
 };
 
 export const RANKING_TYPE_TITLES: Record<RankingType, string> = {
@@ -17,6 +18,7 @@ export const RANKING_TYPE_TITLES: Record<RankingType, string> = {
   early_rise: "伸び始めランキング",
   launch_speed: "初速ランキング",
   potential: "伸びそうランキング",
+  subscriber_ratio: "登録者比ランキング",
 };
 
 export const RANKING_TYPE_DESCRIPTIONS: Record<RankingType, string> = {
@@ -24,6 +26,8 @@ export const RANKING_TYPE_DESCRIPTIONS: Record<RankingType, string> = {
   early_rise: "直近の計測データから、再生速度が加速し始めている動画を表示します。実測スナップショットのみを使います。",
   launch_speed: "公開から間もない動画のうち、1時間あたりの実測再生速度が高いものを表示します。",
   potential: "実測速度・加速度・ジャンル比較から、今後伸びやすい動画をスコア化して表示します。",
+  subscriber_ratio:
+    "登録者数に対して再生が突出している動画を表示します。小規模チャンネルの異常値発見に使います。",
 };
 
 /** One-line comparison shown on the home page guide */
@@ -32,6 +36,7 @@ export const RANKING_TYPE_ONE_LINERS: Record<RankingType, string> = {
   early_rise: "再生が加速し始めた動画",
   launch_speed: "公開直後から速い動画",
   potential: "これから伸びそうな動画",
+  subscriber_ratio: "登録者比が突出している動画",
 };
 
 /** What makes a video rank here — shown on cards */
@@ -40,6 +45,7 @@ export const RANKING_TYPE_WHY_PREFIX: Record<RankingType, string> = {
   early_rise: "加速",
   launch_speed: "初速",
   potential: "伸び予兆",
+  subscriber_ratio: "登録者比",
 };
 
 export const RANKING_SCORE_NAMES: Record<RankingType, string> = {
@@ -47,6 +53,7 @@ export const RANKING_SCORE_NAMES: Record<RankingType, string> = {
   early_rise: "加速スコア",
   launch_speed: "初速スコア",
   potential: "伸び予測スコア",
+  subscriber_ratio: "登録者比スコア",
 };
 
 export const RANKING_ACCUMULATING_MESSAGES: Record<RankingType, string> = {
@@ -57,6 +64,7 @@ export const RANKING_ACCUMULATING_MESSAGES: Record<RankingType, string> = {
     "初速を判定するには、公開後の実測スナップショットが必要です。計測を継続しています。",
   potential:
     "伸び予測には、速度・加速度の実測データが必要です。計測を継続しています。",
+  subscriber_ratio: "",
 };
 
 export const MAX_RANKING_RESULTS = 100;
@@ -102,6 +110,12 @@ export const RANKING_VIEW_DEFINITIONS: RankingViewDefinition[] = [
     label: RANKING_TYPE_LABELS.potential,
     oneLiner: RANKING_TYPE_ONE_LINERS.potential,
     description: RANKING_TYPE_DESCRIPTIONS.potential,
+  },
+  {
+    id: "subscriber_ratio",
+    label: RANKING_TYPE_LABELS.subscriber_ratio,
+    oneLiner: RANKING_TYPE_ONE_LINERS.subscriber_ratio,
+    description: RANKING_TYPE_DESCRIPTIONS.subscriber_ratio,
   },
   {
     id: "genre",

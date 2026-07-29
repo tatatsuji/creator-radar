@@ -7,6 +7,7 @@ import { VideoAnalysisHeader } from "@/components/video/VideoAnalysisHeader";
 import { VideoAnalysisInsight } from "@/components/video/VideoAnalysisInsight";
 import { VideoGrowthMetrics } from "@/components/video/VideoGrowthMetrics";
 import { VideoMeasuredPanel } from "@/components/video/VideoMeasuredPanel";
+import { VideoNextReferences } from "@/components/video/VideoNextReferences";
 import { VideoRankingContext } from "@/components/video/VideoRankingContext";
 import { buildHomeHref, type HomeUrlState } from "@/lib/home/urlState";
 import { RANKING_TYPE_LABELS } from "@/lib/ranking/rankingMeta";
@@ -56,6 +57,7 @@ export function VideoDetailView({
           />
           <VideoGrowthMetrics video={video} period={period} />
           <VideoMeasuredPanel videoId={video.id} />
+          <VideoNextReferences homeUrlState={homeUrlState} />
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <a

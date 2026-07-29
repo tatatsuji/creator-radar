@@ -1,9 +1,9 @@
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import {
-  BUZZ_VIDEOS_LABEL,
-  RANKING_REFERENCE_LABEL,
-  RISING_VIDEOS_LABEL,
+  RANKING_TYPE_DESCRIPTIONS,
+  RANKING_TYPE_LABELS,
+  RANKING_VIEW_DEFINITIONS,
   SERVICE_TAGLINE,
 } from "@/lib/home/copy";
 
@@ -27,28 +27,51 @@ export default function AboutPage() {
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
             <h2 className="text-base font-semibold text-zinc-100">できること</h2>
             <ul className="list-disc space-y-2 pl-5 text-zinc-400">
-              <li>{BUZZ_VIDEOS_LABEL}と{RISING_VIDEOS_LABEL}を切り替えて確認できます</li>
-              <li>{RANKING_REFERENCE_LABEL}と再生速度から、いま伸びている動画を把握できます</li>
-              <li>動画分析ページで、主要指標と実測推移を確認できます</li>
+              <li>ホームの「今日の発見」で、いま注目の動画を数分で把握できます</li>
+              <li>4つのランキング（バズ・伸び始め・初速・伸びそう）と、ジャンル / Shorts / ライブの視点で伸びを比較できます</li>
+              <li>動画詳細で「なぜ伸びたか」「真似できるポイント」「次に参考にすべきもの」を確認できます</li>
+            </ul>
+          </section>
+
+          <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
+            <h2 className="text-base font-semibold text-zinc-100">7つの視点</h2>
+            <ul className="space-y-3">
+              {RANKING_VIEW_DEFINITIONS.map((view) => (
+                <li
+                  key={view.id}
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+                >
+                  <p className="font-semibold text-zinc-200">{view.label}</p>
+                  <p className="mt-1 text-xs text-violet-200/90">{view.oneLiner}</p>
+                  <p className="mt-2 text-zinc-400">{view.description}</p>
+                </li>
+              ))}
             </ul>
           </section>
 
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
             <h2 className="text-base font-semibold text-zinc-100">使い方</h2>
             <ol className="list-decimal space-y-2 pl-5 text-zinc-400">
-              <li>ホームで{BUZZ_VIDEOS_LABEL}または{RISING_VIDEOS_LABEL}を選びます</li>
-              <li>{BUZZ_VIDEOS_LABEL}では期間とジャンルを選び、気になる動画をタップします</li>
-              <li>動画分析ページで{RANKING_REFERENCE_LABEL}や実測グラフを確認できます</li>
+              <li>ホームで「今日の発見」を確認し、気になる動画をタップします</li>
+              <li>4つのランキングタブや7つの視点から、目的に合った一覧を選びます</li>
+              <li>動画詳細で伸びの理由・真似ポイント・次に見るべきランキングを確認します</li>
             </ol>
           </section>
 
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
-            <h2 className="text-base font-semibold text-zinc-100">
-              {RANKING_REFERENCE_LABEL}について
-            </h2>
-            <p className="text-zinc-400">
-              再生速度、登録者数に対する伸び、公開からの経過時間などをもとに、0〜100の参考値として表示しています。数値が高いほど、選択した期間内で相対的に伸びている動画です。
-            </p>
+            <h2 className="text-base font-semibold text-zinc-100">4つのランキング</h2>
+            <ul className="space-y-2">
+              {(Object.keys(RANKING_TYPE_LABELS) as Array<keyof typeof RANKING_TYPE_LABELS>).map(
+                (type) => (
+                  <li key={type} className="text-zinc-400">
+                    <span className="font-medium text-zinc-300">
+                      {RANKING_TYPE_LABELS[type]}
+                    </span>
+                    — {RANKING_TYPE_DESCRIPTIONS[type]}
+                  </li>
+                ),
+              )}
+            </ul>
           </section>
         </article>
       </main>

@@ -18,9 +18,9 @@ export function RankingTypeGuide({ active }: RankingTypeGuideProps) {
       aria-label="ランキング種別の説明"
     >
       <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-        5つのランキングの違い
+        2つのランキング
       </p>
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <ul className="grid gap-2 sm:grid-cols-2">
         {RANKING_TYPES.map((type) => {
           const selected = type === active;
           return (

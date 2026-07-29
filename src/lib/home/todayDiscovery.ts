@@ -88,10 +88,6 @@ function buildSummary(items: TodayDiscoveryItem[]): string {
   const labels = items.map((item) => item.rankingLabel);
   const unique = [...new Set(labels)];
 
-  if (unique.length >= 4) {
-    return `今日は${unique.slice(0, 3).join("・")}など、複数の視点で伸びている動画が見つかっています。`;
-  }
-
   return `今日の注目は${unique.join("・")}。気になる1本から詳細を確認できます。`;
 }
 
@@ -105,13 +101,9 @@ function latestFreshness(timestamps: Array<string | null>): string | null {
 }
 
 export async function getTodayDiscoveryPayload(): Promise<TodayDiscoveryPayload> {
-  const [buzz, earlyRise, launchSpeed, potential, subscriberRatio] =
-    await Promise.all([
+  const [buzz, earlyRise] = await Promise.all([
     getRankingsPayload("buzz", "24h", "all"),
     getRankingsPayload("early_rise", "24h", "all"),
-    getRankingsPayload("launch_speed", "24h", "all"),
-    getRankingsPayload("potential", "24h", "all"),
-    getRankingsPayload("subscriber_ratio", "24h", "all"),
   ]);
 
   const items: TodayDiscoveryItem[] = [];
@@ -129,30 +121,6 @@ export async function getTodayDiscoveryPayload(): Promise<TodayDiscoveryPayload>
     items.push(buildRankingItem("early_rise", earlyTop));
   }
 
-  const launchTop =
-    launchSpeed.readiness.status === "ready"
-      ? pickTopVideo(launchSpeed.videos)
-      : null;
-  if (launchTop) {
-    items.push(buildRankingItem("launch_speed", launchTop));
-  }
-
-  const potentialTop =
-    potential.readiness.status === "ready"
-      ? pickTopVideo(potential.videos)
-      : null;
-  if (potentialTop) {
-    items.push(buildRankingItem("potential", potentialTop));
-  }
-
-  const subscriberTop = pickTopVideo(subscriberRatio.videos);
-  if (
-    subscriberTop &&
-    !items.some((item) => item.video.id === subscriberTop.id)
-  ) {
-    items.push(buildRankingItem("subscriber_ratio", subscriberTop));
-  }
-
   const shortsTop = pickTopVideo(buzz.videos, "short");
   if (shortsTop && !items.some((item) => item.video.id === shortsTop.id)) {
     items.push(buildFormatItem("shorts", shortsTop));
@@ -168,21 +136,15 @@ export async function getTodayDiscoveryPayload(): Promise<TodayDiscoveryPayload>
     dataFreshnessAt: latestFreshness([
       buzz.dataFreshnessAt,
       earlyRise.dataFreshnessAt,
-      launchSpeed.dataFreshnessAt,
-      potential.dataFreshnessAt,
-      subscriberRatio.dataFreshnessAt,
     ]),
-    items: items.slice(0, 6),
+    items: items.slice(0, 4),
     summary: buildSummary(items),
   };
 }
 
-/** Exported for unit tests */
 export function buildTodayDiscoveryFromVideos(input: {
   buzz: Video[];
   earlyRise?: Video[];
-  launchSpeed?: Video[];
-  potential?: Video[];
   dataFreshnessAt?: string | null;
 }): TodayDiscoveryPayload {
   const items: TodayDiscoveryItem[] = [];
@@ -192,15 +154,9 @@ export function buildTodayDiscoveryFromVideos(input: {
     items.push(buildRankingItem("buzz", buzzTop));
   }
 
-  for (const [ranking, videos] of [
-    ["early_rise", input.earlyRise],
-    ["launch_speed", input.launchSpeed],
-    ["potential", input.potential],
-  ] as const) {
-    const top = videos ? pickTopVideo(videos) : null;
-    if (top) {
-      items.push(buildRankingItem(ranking, top));
-    }
+  const earlyTop = input.earlyRise ? pickTopVideo(input.earlyRise) : null;
+  if (earlyTop) {
+    items.push(buildRankingItem("early_rise", earlyTop));
   }
 
   const shortsTop = pickTopVideo(input.buzz, "short");

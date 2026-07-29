@@ -4,7 +4,7 @@ import { DEFAULT_HOME_URL_STATE } from "@/lib/home/urlState";
 import { getVideoNextReferences } from "@/lib/video/nextReferences";
 
 describe("getVideoNextReferences", () => {
-  it("suggests cross-ranking and format exploration links", () => {
+  it("suggests the other ranking and filter links", () => {
     const links = getVideoNextReferences({
       ...DEFAULT_HOME_URL_STATE,
       ranking: "buzz",
@@ -15,7 +15,7 @@ describe("getVideoNextReferences", () => {
     expect(links.some((link) => link.label.includes("今日の発見"))).toBe(true);
   });
 
-  it("avoids duplicate shorts link when already in shorts context", () => {
+  it("avoids duplicate shorts link when already filtered", () => {
     const links = getVideoNextReferences({
       ...DEFAULT_HOME_URL_STATE,
       format: "short",

@@ -31,19 +31,16 @@ function buildVideo(id: string, overrides: Partial<Video> = {}): Video {
 }
 
 describe("buildTodayDiscoveryFromVideos", () => {
-  it("builds cross-ranking picks including Shorts", () => {
+  it("builds buzz, early rise, and Shorts picks", () => {
     const payload = buildTodayDiscoveryFromVideos({
       buzz: [
         buildVideo("buzz-1"),
         buildVideo("short-1", { contentKind: "short", durationSeconds: 45 }),
       ],
       earlyRise: [buildVideo("rise-1")],
-      launchSpeed: [buildVideo("launch-1")],
-      potential: [buildVideo("potential-1")],
       dataFreshnessAt: "2026-07-29T11:00:00.000Z",
     });
 
-    expect(payload.items.length).toBeGreaterThanOrEqual(5);
     expect(payload.items.some((item) => item.ranking === "buzz")).toBe(true);
     expect(payload.items.some((item) => item.ranking === "early_rise")).toBe(true);
     expect(payload.items.some((item) => item.ranking === "shorts")).toBe(true);

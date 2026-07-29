@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { HomeHero } from "@/components/home/HomeHero";
 import { RankingTypeGuide } from "@/components/home/RankingTypeGuide";
 import { RankingTypeTabs } from "@/components/home/RankingTypeTabs";
-import { RankingViewShortcuts } from "@/components/home/RankingViewShortcuts";
+import { ContentFilterShortcuts } from "@/components/home/ContentFilterShortcuts";
 import { TodayDiscoveryPanel } from "@/components/home/TodayDiscoveryPanel";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -109,7 +109,7 @@ export function RankingDashboard({
             homeUrlState={urlState}
           />
           <RankingTypeTabs value={urlState.ranking} onChange={setRanking} />
-          <RankingViewShortcuts homeUrlState={urlState} />
+          <ContentFilterShortcuts homeUrlState={urlState} />
           <RankingTypeGuide active={urlState.ranking} />
         </section>
 

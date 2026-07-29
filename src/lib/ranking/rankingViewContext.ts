@@ -1,13 +1,13 @@
 import type { HomeUrlState } from "@/lib/home/urlState";
 import {
-  getRankingViewDefinition,
-  type RankingViewDefinition,
-  type RankingViewId,
+  getContentFilterDefinition,
+  type ContentFilterDefinition,
+  type ContentFilterViewId,
 } from "@/lib/ranking/rankingMeta";
 
-export function resolveActiveViewFromState(
+export function resolveActiveContentFilter(
   homeUrlState: HomeUrlState,
-): RankingViewId {
+): ContentFilterViewId | null {
   if (homeUrlState.format === "short") {
     return "shorts";
   }
@@ -17,13 +17,18 @@ export function resolveActiveViewFromState(
   if (homeUrlState.genre !== "all") {
     return "genre";
   }
-  return homeUrlState.ranking;
+  return null;
 }
 
-export function getActiveRankingView(
+export function getActiveContentFilter(
   homeUrlState: HomeUrlState,
-): RankingViewDefinition {
-  return getRankingViewDefinition(resolveActiveViewFromState(homeUrlState));
+): ContentFilterDefinition | null {
+  const filterId = resolveActiveContentFilter(homeUrlState);
+  return filterId ? getContentFilterDefinition(filterId) : null;
 }
 
-export { getRankingViewDefinition, type RankingViewId, type RankingViewDefinition };
+export {
+  getContentFilterDefinition,
+  type ContentFilterViewId,
+  type ContentFilterDefinition,
+};

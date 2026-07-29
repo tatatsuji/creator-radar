@@ -46,12 +46,12 @@ describe("home url state", () => {
   it("builds home href with non-default filters", () => {
     expect(
       buildHomeHref({
-        ranking: "potential",
+        ranking: "early_rise",
         period: "7d",
         genre: "game",
         format: "all",
       }),
-    ).toBe("/?ranking=potential&period=7d&genre=game");
+    ).toBe("/?ranking=early_rise&period=7d&genre=game");
   });
 
   it("includes format in home href when not all", () => {
@@ -67,14 +67,14 @@ describe("home url state", () => {
 
   it("builds video detail href and round-trips home state", () => {
     const state = {
-      ranking: "launch_speed" as const,
+      ranking: "early_rise" as const,
       period: "7d" as const,
       genre: "game" as const,
       format: "all" as const,
     };
     const href = buildVideoDetailHref("abc123", state);
 
-    expect(href).toBe("/videos/abc123?period=7d&genre=game&ranking=launch_speed");
+    expect(href).toBe("/videos/abc123?period=7d&genre=game&ranking=early_rise");
     expect(parseVideoDetailHomeState(new URL(href, "https://example.com").searchParams)).toEqual(
       state,
     );

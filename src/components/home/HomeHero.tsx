@@ -15,7 +15,7 @@ export function HomeHero({ dataFreshnessAt = null }: HomeHeroProps) {
         {SERVICE_TAGLINE}
       </h1>
       <p className="max-w-2xl text-sm leading-relaxed text-violet-200 sm:text-base">
-        ランキングは入口。伸びた理由と、自分に活かせるポイントまで分かるサービスです。
+        バズと伸び始め、2つのランキングから今日のYouTubeを読み解きます。
       </p>
       {dataFreshnessAt ? (
         <p className="text-xs text-zinc-500">

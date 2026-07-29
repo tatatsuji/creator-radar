@@ -2,7 +2,12 @@ import {
   RANKING_TYPE_LABELS,
   type RankingTypeTab,
 } from "@/lib/ranking/rankingMeta";
-import { isRankingType, RANKING_TYPES, type RankingType } from "@/types/ranking";
+import {
+  isDeprecatedRankingType,
+  isRankingType,
+  RANKING_TYPES,
+  type RankingType,
+} from "@/types/ranking";
 
 export type { RankingType };
 
@@ -20,6 +25,10 @@ export function parseRankingType(
 ): RankingType {
   if (rankingValue && isRankingType(rankingValue)) {
     return rankingValue;
+  }
+
+  if (rankingValue && isDeprecatedRankingType(rankingValue)) {
+    return "buzz";
   }
 
   if (legacyModeValue === "rising") {

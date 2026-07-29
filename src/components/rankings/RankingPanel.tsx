@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DataAccumulatingPanel } from "@/components/home/DataAccumulatingPanel";
 import { MetricsCoverageBanner } from "@/components/rankings/MetricsCoverageBanner";
 import { RankingFiltersBar } from "@/components/rankings/RankingFiltersBar";
-import { RankingViewContextBanner } from "@/components/rankings/RankingViewContextBanner";
+import { ContentFilterBanner } from "@/components/rankings/ContentFilterBanner";
 import { VideoCard } from "@/components/rankings/VideoCard";
 import { RankingCardSkeleton, StatePanel } from "@/components/ui/StatePanel";
 import { formatRankingUpdatedAt } from "@/lib/format";
@@ -258,7 +258,7 @@ export function RankingPanel({
       </div>
 
       {showViewContext ? (
-        <RankingViewContextBanner homeUrlState={homeUrlState} ranking={ranking} />
+        <ContentFilterBanner homeUrlState={homeUrlState} ranking={ranking} />
       ) : null}
 
       <RankingFiltersBar

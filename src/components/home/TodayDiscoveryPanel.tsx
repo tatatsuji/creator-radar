@@ -161,7 +161,7 @@ export function TodayDiscoveryPanel({
         </ul>
 
         <p className="text-xs text-zinc-500">
-          毎日更新。5つのランキング視点と Shorts / ライブから、今日の候補をピックアップしています。
+          毎日更新。バズ・伸び始めと、Shorts / ライブの候補をピックアップしています。
         </p>
       </div>
     </section>

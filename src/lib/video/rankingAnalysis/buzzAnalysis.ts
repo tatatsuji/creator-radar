@@ -4,53 +4,39 @@ import { formatViewDelta } from "@/lib/format";
 
 import type { BuzzRankingAnalysis, VideoAnalysisInput } from "./types";
 
-const CONTENT_KIND_LABELS = {
-  short: "Shorts",
-  live: "ライブ配信",
-  regular: "通常動画",
-  unknown: "動画",
-} as const;
-
-function buildOverview(video: VideoAnalysisInput["video"]): string {
-  const kind =
-    CONTENT_KIND_LABELS[video.contentKind ?? "unknown"] ?? "動画";
-  return `${video.channel.name}の${kind}。${getPeriodLabel(video.metrics.period)}のデータで追跡中です。`;
-}
-
-function buildWhyTrendingParagraphs(input: VideoAnalysisInput): string {
+function buildLeadAnswer(input: VideoAnalysisInput): string {
   const { video, period } = input;
-  const lines: string[] = [];
   const rankReason = video.rankingDisplay?.rankReason;
-  const hero = getCardHeroMetric(video, period);
-  const kindLabel =
-    CONTENT_KIND_LABELS[video.contentKind ?? "unknown"] ?? "動画";
 
-  if (rankReason) {
-    lines.push(`${rankReason}。`);
+  if (rankReason && video.metrics.viewDelta > 0) {
+    return `${rankReason}。${getPeriodLabel(period)}で${formatViewDelta(video.metrics.viewDelta)}の再生増です。`;
   }
 
   if (video.metrics.viewDelta > 0) {
-    lines.push(
-      `${getPeriodLabel(period)}だけで再生が${formatViewDelta(video.metrics.viewDelta)}増えており、いま注目を集めています。`,
-    );
-  } else {
-    lines.push(
-      `推定データ上、${getPeriodLabel(period)}の勢いが高い状態です。`,
-    );
+    return `${getPeriodLabel(period)}で${formatViewDelta(video.metrics.viewDelta)}の再生増があり、いま注目を集めています。`;
   }
 
-  lines.push(
-    `${hero.label}は${hero.value}。${kindLabel}として、いまYouTube上で話題になりやすい流れに乗っている可能性があります。`,
-  );
+  if (rankReason) {
+    return `${rankReason}。`;
+  }
+
+  return "いま再生の勢いが強く、話題になりやすい流れに乗っています。";
+}
+
+function buildDetails(input: VideoAnalysisInput): string[] {
+  const { video, period } = input;
+  const details: string[] = [];
+  const hero = getCardHeroMetric(video, period);
+
+  details.push(`${hero.label}は${hero.value}。`);
 
   if (!video.channel.subscriberCountHidden && video.metrics.viewsPerSubscriber >= 1) {
-    lines.push(
-      `チャンネル登録者数を上回る再生数になっており、ファン以外にも広く見られ始めているサインです。`,
+    details.push(
+      "チャンネル登録者数を上回る再生になっており、ファン以外にも広く見られ始めています。",
     );
   }
 
-  const trimmed = lines.slice(0, 4);
-  return trimmed.join("\n");
+  return details.slice(0, 2);
 }
 
 export function buildBuzzRankingAnalysis(
@@ -60,12 +46,11 @@ export function buildBuzzRankingAnalysis(
 
   return {
     kind: "buzz",
+    leadAnswer: buildLeadAnswer(input),
     momentumLabel: hero.label,
     momentumValue: hero.value,
-    overview: buildOverview(input.video),
-    whyTrendingNow: buildWhyTrendingParagraphs(input),
-    disclaimer:
-      "この説明は公開データと計測値から自動生成しています。話題の理由は1つに限られない場合があります。",
+    details: buildDetails(input),
+    disclaimer: "公開データと計測値から自動生成しています。",
     provider: "rule_based",
   };
 }

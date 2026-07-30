@@ -2,8 +2,8 @@ import Link from "next/link";
 
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { VideoActionableTakeaways } from "@/components/video/VideoActionableTakeaways";
 import { VideoAnalysisHeader } from "@/components/video/VideoAnalysisHeader";
+import { VideoCollapsibleSection } from "@/components/video/VideoCollapsibleSection";
 import { VideoDetailAnalysis } from "@/components/video/VideoDetailAnalysis";
 import { VideoGrowthMetrics } from "@/components/video/VideoGrowthMetrics";
 import { VideoMeasuredPanel } from "@/components/video/VideoMeasuredPanel";
@@ -29,7 +29,6 @@ export function VideoDetailView({
   const youtubeUrl = `https://www.youtube.com/watch?v=${video.id}`;
   const rankingHref = buildHomeHref(homeUrlState);
   const rankingLabel = HOME_UI_RANKING_LABELS[homeUrlState.ranking];
-  const showActionables = homeUrlState.ranking === "early_rise";
 
   return (
     <div className="app-background flex min-h-screen flex-col pb-24 sm:pb-0">
@@ -41,16 +40,28 @@ export function VideoDetailView({
       />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
-        <div className="space-y-6 sm:space-y-8">
+        <div className="space-y-5 sm:space-y-6">
           <VideoAnalysisHeader
             video={video}
             period={period}
             homeUrlState={homeUrlState}
           />
-          <VideoDetailAnalysis analysis={analysis} />
-          {showActionables ? <VideoActionableTakeaways video={video} /> : null}
-          <VideoGrowthMetrics video={video} period={period} />
-          <VideoMeasuredPanel videoId={video.id} />
+          <VideoDetailAnalysis analysis={analysis} video={video} />
+
+          <VideoCollapsibleSection
+            title="詳しい数値"
+            description="ランキングと同じ指標の内訳"
+          >
+            <VideoGrowthMetrics video={video} period={period} compact />
+          </VideoCollapsibleSection>
+
+          <VideoCollapsibleSection
+            title="再生の推移グラフ"
+            description="実測データがある場合に表示されます"
+          >
+            <VideoMeasuredPanel videoId={video.id} embedded />
+          </VideoCollapsibleSection>
+
           <VideoNextReferences homeUrlState={homeUrlState} />
 
           <div className="flex flex-col gap-3 sm:flex-row">

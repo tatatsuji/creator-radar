@@ -61,29 +61,28 @@ function buildInput(video: Video): VideoAnalysisInput {
 }
 
 describe("buildBuzzRankingAnalysis", () => {
-  it("returns plain-language why-trending copy without jargon", () => {
+  it("returns a lead answer and optional details without jargon", () => {
     const analysis = buildBuzzRankingAnalysis(buildInput(buildVideo()));
 
     expect(analysis.kind).toBe("buzz");
-    expect(analysis.whyTrendingNow).toContain("増え");
-    expect(analysis.whyTrendingNow).not.toContain("初速");
-    expect(analysis.whyTrendingNow.split("\n").length).toBeGreaterThanOrEqual(2);
-    expect(analysis.whyTrendingNow.split("\n").length).toBeLessThanOrEqual(5);
+    expect(analysis.leadAnswer).toContain("再生");
+    expect(analysis.leadAnswer).not.toContain("初速");
+    expect(analysis.details.length).toBeLessThanOrEqual(2);
   });
 });
 
 describe("buildEarlyRiseRankingAnalysis", () => {
-  it("orders output as facts, hypotheses, and reference points", () => {
+  it("orders output as facts and hypotheses without duplicate reference points", () => {
     const analysis = buildEarlyRiseRankingAnalysis(buildInput(buildVideo()));
 
     expect(analysis.kind).toBe("early_rise");
-    expect(analysis.facts.some((fact) => fact.label === "タイトル")).toBe(true);
-    expect(analysis.facts.some((fact) => fact.label === "再生速度")).toBe(true);
+    expect(analysis.facts.length).toBeLessThanOrEqual(4);
     expect(analysis.hypotheses.length).toBeGreaterThan(0);
+    expect(analysis.hypotheses.length).toBeLessThanOrEqual(3);
     expect(analysis.hypotheses.every((item) => item.text.includes("可能性"))).toBe(
       true,
     );
-    expect(analysis.referencePoints.length).toBeGreaterThan(0);
+    expect("referencePoints" in analysis).toBe(false);
   });
 });
 

@@ -26,6 +26,7 @@ const HISTORY_TABS: Array<{ id: HistoryRange; label: string }> = [
 
 interface VideoMeasuredPanelProps {
   videoId: string;
+  embedded?: boolean;
 }
 
 function useHasMounted(): boolean {
@@ -36,7 +37,10 @@ function useHasMounted(): boolean {
   );
 }
 
-export function VideoMeasuredPanel({ videoId }: VideoMeasuredPanelProps) {
+export function VideoMeasuredPanel({
+  videoId,
+  embedded = false,
+}: VideoMeasuredPanelProps) {
   const mounted = useHasMounted();
   const [deltas, setDeltas] = useState<VideoDeltasResponse | null>(null);
   const [historyRange, setHistoryRange] = useState<HistoryRange>("24h");
@@ -144,25 +148,31 @@ export function VideoMeasuredPanel({ videoId }: VideoMeasuredPanelProps) {
 
   return (
     <section
-      className="glass-panel space-y-5 p-4 sm:p-6"
-      aria-labelledby="measured-panel-heading"
+      className={embedded ? "space-y-5" : "glass-panel space-y-5 p-4 sm:p-6"}
+      aria-labelledby={embedded ? undefined : "measured-panel-heading"}
     >
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300/90">
-          実測データ
-        </p>
-        <h2 id="measured-panel-heading" className="mt-1 text-lg font-semibold text-zinc-100">
-          計測データで見る伸び方
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-          {MEASURED_METRICS_EXPLANATION}。Creator Radarが継続計測した結果を、時間軸で確認できます。
-        </p>
-        {deltas?.measuredAt ? (
-          <p className="mt-2 text-xs text-zinc-500">
-            最終取得 {formatRankingUpdatedAt(deltas.measuredAt)}
+      {!embedded ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300/90">
+            実測データ
           </p>
-        ) : null}
-      </div>
+          <h2 id="measured-panel-heading" className="mt-1 text-lg font-semibold text-zinc-100">
+            計測データで見る伸び方
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+            {MEASURED_METRICS_EXPLANATION}。Creator Radarが継続計測した結果を、時間軸で確認できます。
+          </p>
+          {deltas?.measuredAt ? (
+            <p className="mt-2 text-xs text-zinc-500">
+              最終取得 {formatRankingUpdatedAt(deltas.measuredAt)}
+            </p>
+          ) : null}
+        </div>
+      ) : deltas?.measuredAt ? (
+        <p className="text-xs text-zinc-500">
+          最終取得 {formatRankingUpdatedAt(deltas.measuredAt)}
+        </p>
+      ) : null}
 
       {error ? (
         <StatePanel

@@ -18,10 +18,12 @@ export interface VideoAnalysisInput {
 
 export interface BuzzRankingAnalysis {
   kind: "buzz";
+  /** 5秒で伝わる一言 */
+  leadAnswer: string;
   momentumLabel: string;
   momentumValue: string;
-  overview: string;
-  whyTrendingNow: string;
+  /** 折りたたみ内の補足 */
+  details: string[];
   disclaimer: string;
   provider: AnalysisProvider;
 }
@@ -36,16 +38,11 @@ export interface AnalysisHypothesis {
   text: string;
 }
 
-export interface AnalysisReferencePoint {
-  text: string;
-}
-
 export interface EarlyRiseRankingAnalysis {
   kind: "early_rise";
   summary: string;
   facts: AnalysisFact[];
   hypotheses: AnalysisHypothesis[];
-  referencePoints: AnalysisReferencePoint[];
   disclaimer: string;
   provider: AnalysisProvider;
 }

@@ -16,22 +16,32 @@ import type { RankingPeriod, Video } from "@/types";
 interface VideoGrowthMetricsProps {
   video: Video;
   period: RankingPeriod;
+  compact?: boolean;
 }
 
-export function VideoGrowthMetrics({ video, period }: VideoGrowthMetricsProps) {
+export function VideoGrowthMetrics({
+  video,
+  period,
+  compact = false,
+}: VideoGrowthMetricsProps) {
   const velocity = getVelocityDisplay(video, period);
   const isMeasured = video.metrics.metricsSource === "measured";
 
   return (
-    <section className="space-y-4" aria-labelledby="growth-metrics-heading">
-      <div>
-        <h2 id="growth-metrics-heading" className="text-lg font-semibold text-zinc-100">
-          指標の内訳
-        </h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          ランキングと同じ基準です。推定値と実測値を混同しないよう、出所を確認してください。
-        </p>
-      </div>
+    <section
+      className={compact ? "space-y-4" : "space-y-4"}
+      aria-labelledby={compact ? undefined : "growth-metrics-heading"}
+    >
+      {!compact ? (
+        <div>
+          <h2 id="growth-metrics-heading" className="text-lg font-semibold text-zinc-100">
+            指標の内訳
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            ランキングと同じ基準です。推定値と実測値を混同しないよう、出所を確認してください。
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <MetricCard

@@ -1,10 +1,10 @@
+import { formatCount, formatViewDelta } from "@/lib/format";
 import { getCardHeroMetric } from "@/lib/ranking/cardDisplay";
 import { getPeriodLabel } from "@/lib/ranking/periods";
-import { formatViewDelta } from "@/lib/format";
 
 import type { BuzzRankingAnalysis, VideoAnalysisInput } from "./types";
 
-function buildLeadAnswer(input: VideoAnalysisInput): string {
+function buildMeasuredLeadAnswer(input: VideoAnalysisInput): string {
   const { video, period } = input;
   const rankReason = video.rankingDisplay?.rankReason;
 
@@ -21,6 +21,41 @@ function buildLeadAnswer(input: VideoAnalysisInput): string {
   }
 
   return "いま再生の勢いが強く、話題になりやすい流れに乗っています。";
+}
+
+function buildEstimatedLeadAnswer(input: VideoAnalysisInput): string {
+  const { video, period } = input;
+  const rankReason = video.rankingDisplay?.rankReason;
+
+  if (video.metrics.viewDelta > 0) {
+    const estimatedGrowth = `公開後の平均再生速度から、${getPeriodLabel(period)}で約${formatCount(video.metrics.viewDelta)}回伸びたと推定されます。`;
+    if (rankReason) {
+      return `${rankReason}。${estimatedGrowth}`;
+    }
+    return `${estimatedGrowth}いま注目を集めやすい流れに乗っています。`;
+  }
+
+  if (rankReason) {
+    return `${rankReason}。`;
+  }
+
+  return "公開後の平均再生速度から、いま再生の勢いが強いと推定されます。";
+}
+
+function buildLeadAnswer(input: VideoAnalysisInput): string {
+  if (input.video.metrics.metricsSource === "measured") {
+    return buildMeasuredLeadAnswer(input);
+  }
+
+  return buildEstimatedLeadAnswer(input);
+}
+
+function buildDisclaimer(input: VideoAnalysisInput): string {
+  if (input.video.metrics.metricsSource === "measured") {
+    return "公開データと計測値から自動生成しています。";
+  }
+
+  return "公開データをもとに自動推定しています。";
 }
 
 function buildDetails(input: VideoAnalysisInput): string[] {
@@ -50,7 +85,7 @@ export function buildBuzzRankingAnalysis(
     momentumLabel: hero.label,
     momentumValue: hero.value,
     details: buildDetails(input),
-    disclaimer: "公開データと計測値から自動生成しています。",
+    disclaimer: buildDisclaimer(input),
     provider: "rule_based",
   };
 }

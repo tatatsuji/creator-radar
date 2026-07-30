@@ -68,6 +68,28 @@ describe("buildBuzzRankingAnalysis", () => {
     expect(analysis.leadAnswer).toContain("再生");
     expect(analysis.leadAnswer).not.toContain("初速");
     expect(analysis.details.length).toBeLessThanOrEqual(2);
+    expect(analysis.disclaimer).toBe("公開データと計測値から自動生成しています。");
+  });
+
+  it("uses estimated wording and disclaimer when metrics are estimated", () => {
+    const analysis = buildBuzzRankingAnalysis(
+      buildInput(
+        buildVideo({
+          metrics: {
+            period: "24h",
+            viewDelta: 5_000,
+            viewVelocity: 208,
+            viewsPerSubscriber: 5,
+            rankingScore: 72,
+            metricsSource: "estimated",
+          },
+        }),
+      ),
+    );
+
+    expect(analysis.leadAnswer).toContain("推定されます");
+    expect(analysis.leadAnswer).not.toContain("再生増");
+    expect(analysis.disclaimer).toBe("公開データをもとに自動推定しています。");
   });
 });
 

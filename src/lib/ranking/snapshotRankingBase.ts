@@ -141,7 +141,7 @@ export function mapVideoRowToVideo(
       subscriberCountHidden,
       thumbnailUrl: undefined,
     },
-    viewCount: latestSnapshot?.view_count ?? 0,
+    viewCount: latestSnapshot?.view_count ?? row.view_count ?? 0,
     metrics: {
       period,
       viewDelta: 0,

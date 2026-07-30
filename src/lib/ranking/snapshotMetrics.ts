@@ -159,12 +159,18 @@ export async function mergeSnapshotMetricsIntoVideos(
     const snapshots = snapshotsByVideo.get(video.id) ?? [];
 
     if (snapshots.length < 2) {
+      const metrics = buildVideoMetrics(
+        period,
+        video.viewCount,
+        video.channel.subscriberCount,
+        video.channel.subscriberCountHidden ?? false,
+        video.publishedAt,
+        video.channel.name,
+      );
+
       return {
         ...video,
-        metrics: {
-          ...video.metrics,
-          metricsSource: "estimated" as MetricsSource,
-        },
+        metrics,
       };
     }
 

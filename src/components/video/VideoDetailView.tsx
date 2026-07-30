@@ -7,7 +7,6 @@ import { VideoCollapsibleSection } from "@/components/video/VideoCollapsibleSect
 import { VideoDetailAnalysis } from "@/components/video/VideoDetailAnalysis";
 import { VideoGrowthMetrics } from "@/components/video/VideoGrowthMetrics";
 import { VideoMeasuredPanel } from "@/components/video/VideoMeasuredPanel";
-import { VideoNextReferences } from "@/components/video/VideoNextReferences";
 import { buildHomeHref, type HomeUrlState } from "@/lib/home/urlState";
 import { HOME_UI_RANKING_LABELS } from "@/lib/ranking/rankingMeta";
 import type { RankingOptimizedAnalysis } from "@/lib/video/rankingAnalysis/types";
@@ -61,8 +60,6 @@ export function VideoDetailView({
           >
             <VideoMeasuredPanel videoId={video.id} embedded />
           </VideoCollapsibleSection>
-
-          <VideoNextReferences homeUrlState={homeUrlState} />
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <a

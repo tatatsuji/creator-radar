@@ -45,7 +45,6 @@ export function VideoCard({
     period,
     ranking,
   });
-  const youtubeUrl = `https://www.youtube.com/watch?v=${video.id}`;
   const isMeasured = video.metrics.metricsSource === "measured";
 
   return (
@@ -132,42 +131,6 @@ export function VideoCard({
           </div>
         </div>
       </Link>
-
-      <div className="mt-auto flex flex-col gap-2 border-t border-white/[0.06] px-4 py-3 sm:flex-row sm:px-5">
-        <Link
-          href={detailHref}
-          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600/90 px-4 text-sm font-semibold text-white transition hover:bg-violet-500"
-        >
-          なぜ伸びたかを見る
-          <ArrowIcon />
-        </Link>
-        <a
-          href={youtubeUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06]"
-          aria-label="YouTubeで開く"
-        >
-          <YouTubeIcon />
-          <span>YouTube</span>
-        </a>
-      </div>
     </article>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  );
-}
-
-function YouTubeIcon() {
-  return (
-    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 00.5 6.2 31.5 31.5 0 000 12a31.5 31.5 0 00.5 5.8 3 3 0 002.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 002.1-2.1A31.5 31.5 0 0024 12a31.5 31.5 0 00-.5-5.8zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
-    </svg>
   );
 }

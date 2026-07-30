@@ -2,7 +2,6 @@ import { Suspense } from "react";
 
 import { RankingDashboard } from "@/components/rankings/RankingDashboard";
 import { parseHomeUrlState } from "@/lib/home/urlState";
-import { getTodayDiscoveryPayload } from "@/lib/home/todayDiscovery";
 import { getRankingsPayload } from "@/lib/ranking/getRankingsPayload";
 import {
   getAvailableGenreIds,
@@ -46,25 +45,18 @@ export default async function Home({ searchParams }: HomeProps) {
     requiredCount: 0,
     message: "",
   };
-  let todayDiscovery = {
-    dateLabel: "",
-    dataFreshnessAt: null as string | null,
-    items: [] as Awaited<ReturnType<typeof getTodayDiscoveryPayload>>["items"],
-    summary: "",
-  };
-
   try {
     availableGenres = await getAvailableGenreIds();
-    const [payload, discovery] = await Promise.all([
-      getRankingsPayload(urlState.ranking, urlState.period, urlState.genre),
-      getTodayDiscoveryPayload(),
-    ]);
+    const payload = await getRankingsPayload(
+      urlState.ranking,
+      urlState.period,
+      urlState.genre,
+    );
     initialVideos = payload.videos;
     initialUpdatedAt = payload.updatedAt;
     initialDataFreshnessAt = payload.dataFreshnessAt;
     initialMetricsSummary = payload.metricsSummary;
     initialReadiness = payload.readiness;
-    todayDiscovery = discovery;
   } catch (error) {
     initialError = getRankingErrorMessage(error);
   }
@@ -82,7 +74,6 @@ export default async function Home({ searchParams }: HomeProps) {
         initialReadiness={initialReadiness}
         initialAvailableGenres={availableGenres}
         initialError={initialError}
-        todayDiscovery={todayDiscovery}
       />
     </Suspense>
   );

@@ -7,7 +7,6 @@ import { HomeHero } from "@/components/home/HomeHero";
 import { RankingTypeGuide } from "@/components/home/RankingTypeGuide";
 import { RankingTypeTabs } from "@/components/home/RankingTypeTabs";
 import { ContentFilterShortcuts } from "@/components/home/ContentFilterShortcuts";
-import { TodayDiscoveryPanel } from "@/components/home/TodayDiscoveryPanel";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { RankingPanel } from "@/components/rankings/RankingPanel";
@@ -18,7 +17,6 @@ import {
 } from "@/lib/home/urlState";
 import type { GenreId, RankingPeriod, Video } from "@/types";
 import type { HomeUiRankingType, RankingReadiness } from "@/types/ranking";
-import type { TodayDiscoveryPayload } from "@/lib/home/todayDiscovery";
 
 interface RankingDashboardProps {
   initialRanking?: HomeUiRankingType;
@@ -31,7 +29,6 @@ interface RankingDashboardProps {
   initialReadiness?: RankingReadiness;
   initialAvailableGenres?: GenreId[];
   initialError?: string | null;
-  todayDiscovery: TodayDiscoveryPayload;
 }
 
 export function RankingDashboard({
@@ -50,7 +47,6 @@ export function RankingDashboard({
   },
   initialAvailableGenres = ["all"],
   initialError = null,
-  todayDiscovery,
 }: RankingDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -99,15 +95,7 @@ export function RankingDashboard({
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
         <section className="mb-6 space-y-5 sm:mb-8">
-          <HomeHero
-            dataFreshnessAt={
-              todayDiscovery.dataFreshnessAt ?? initialDataFreshnessAt
-            }
-          />
-          <TodayDiscoveryPanel
-            discovery={todayDiscovery}
-            homeUrlState={urlState}
-          />
+          <HomeHero dataFreshnessAt={initialDataFreshnessAt} />
           <RankingTypeTabs value={urlState.ranking} onChange={setRanking} />
           <ContentFilterShortcuts homeUrlState={urlState} />
           <RankingTypeGuide active={urlState.ranking} />

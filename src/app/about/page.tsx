@@ -28,10 +28,9 @@ export default function AboutPage() {
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
             <h2 className="text-base font-semibold text-zinc-100">できること</h2>
             <ul className="list-disc space-y-2 pl-5 text-zinc-400">
-              <li>ホームの「今日の発見」で、いま注目の動画を数分で把握できます</li>
               <li>バズ / 伸び始めの2つのランキングで、目的に合った伸びを見つけられます</li>
               <li>ジャンル・Shorts・ライブはフィルターとして、同じランキングを絞り込めます</li>
-              <li>動画詳細で「なぜ伸びたか」「真似できるポイント」「次に参考にすべきもの」を確認できます</li>
+              <li>動画詳細で「なぜ話題なのか」「なぜ伸び始めたのか」を確認できます</li>
             </ul>
           </section>
 
@@ -71,9 +70,9 @@ export default function AboutPage() {
           <section className="space-y-3 text-sm leading-relaxed text-zinc-300">
             <h2 className="text-base font-semibold text-zinc-100">使い方</h2>
             <ol className="list-decimal space-y-2 pl-5 text-zinc-400">
-              <li>ホームで「今日の発見」を確認し、気になる動画をタップします</li>
-              <li>バズ / 伸び始めを選び、必要ならジャンル・形式で絞り込みます</li>
-              <li>動画詳細で伸びの理由・真似ポイント・次の参考先を確認します</li>
+              <li>ホームでバズ / 伸び始めを選び、気になる動画をタップします</li>
+              <li>必要ならジャンル・形式で絞り込みます</li>
+              <li>動画詳細で伸びの理由を確認します</li>
             </ol>
           </section>
         </article>

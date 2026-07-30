@@ -4,29 +4,32 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { VideoActionableTakeaways } from "@/components/video/VideoActionableTakeaways";
 import { VideoAnalysisHeader } from "@/components/video/VideoAnalysisHeader";
-import { VideoAnalysisInsight } from "@/components/video/VideoAnalysisInsight";
+import { VideoDetailAnalysis } from "@/components/video/VideoDetailAnalysis";
 import { VideoGrowthMetrics } from "@/components/video/VideoGrowthMetrics";
 import { VideoMeasuredPanel } from "@/components/video/VideoMeasuredPanel";
 import { VideoNextReferences } from "@/components/video/VideoNextReferences";
-import { VideoRankingContext } from "@/components/video/VideoRankingContext";
 import { buildHomeHref, type HomeUrlState } from "@/lib/home/urlState";
 import { HOME_UI_RANKING_LABELS } from "@/lib/ranking/rankingMeta";
+import type { RankingOptimizedAnalysis } from "@/lib/video/rankingAnalysis/types";
 import type { RankingPeriod, Video } from "@/types";
 
 interface VideoDetailViewProps {
   video: Video;
   period: RankingPeriod;
   homeUrlState: HomeUrlState;
+  analysis: RankingOptimizedAnalysis;
 }
 
 export function VideoDetailView({
   video,
   period,
   homeUrlState,
+  analysis,
 }: VideoDetailViewProps) {
   const youtubeUrl = `https://www.youtube.com/watch?v=${video.id}`;
   const rankingHref = buildHomeHref(homeUrlState);
   const rankingLabel = HOME_UI_RANKING_LABELS[homeUrlState.ranking];
+  const showActionables = homeUrlState.ranking === "early_rise";
 
   return (
     <div className="app-background flex min-h-screen flex-col pb-24 sm:pb-0">
@@ -44,17 +47,8 @@ export function VideoDetailView({
             period={period}
             homeUrlState={homeUrlState}
           />
-          <VideoRankingContext
-            video={video}
-            period={period}
-            homeUrlState={homeUrlState}
-          />
-          <VideoActionableTakeaways video={video} />
-          <VideoAnalysisInsight
-            video={video}
-            period={period}
-            ranking={homeUrlState.ranking}
-          />
+          <VideoDetailAnalysis analysis={analysis} />
+          {showActionables ? <VideoActionableTakeaways video={video} /> : null}
           <VideoGrowthMetrics video={video} period={period} />
           <VideoMeasuredPanel videoId={video.id} />
           <VideoNextReferences homeUrlState={homeUrlState} />

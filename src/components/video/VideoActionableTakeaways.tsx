@@ -38,7 +38,7 @@ export function VideoActionableTakeaways({ video }: VideoActionableTakeawaysProp
           自分の動画に活かせる参考パターン
         </h2>
         <p className="text-sm text-zinc-500">
-          この動画のメタデータから読み取れる構成・タイミングのヒントです。AI分析（近日公開予定）の前段としてご活用ください。
+          この動画から読み取れる構成・タイミングのヒントです。今日から試せる参考としてご活用ください。
         </p>
       </div>
 

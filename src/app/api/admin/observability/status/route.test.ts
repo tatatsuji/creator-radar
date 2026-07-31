@@ -41,6 +41,7 @@ vi.mock("@/lib/observability/status", () => ({
       dueMeasurementCount: 0,
       activeLockCount: 0,
     },
+    websub: null,
     checkedAt: "2026-07-26T06:00:00.000Z",
   }),
 }));

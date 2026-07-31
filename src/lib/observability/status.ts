@@ -19,6 +19,8 @@ import {
   countDueWatchlistChannels,
   countWatchlistChannels,
 } from "@/lib/watchlist/repository";
+import { loadWebsubObservabilityStatus } from "@/lib/observability/websubStatus";
+import type { WebsubObservabilityStatus } from "@/lib/observability/websubStatus";
 import type { DiscoveryRunRow, SnapshotRunRow } from "@/types/database";
 import type { PipelineHealth } from "@/lib/observability/health";
 
@@ -51,6 +53,7 @@ export interface ObservabilityStatus {
     } | null;
   };
   health: PipelineHealth;
+  websub: WebsubObservabilityStatus | null;
   checkedAt: string;
 }
 
@@ -108,6 +111,13 @@ export async function loadObservabilityStatus(): Promise<ObservabilityStatus> {
 
   const discoverySourceCounts = await countDiscoveriesBySourceType();
 
+  let websub: WebsubObservabilityStatus | null = null;
+  try {
+    websub = await loadWebsubObservabilityStatus();
+  } catch {
+    websub = null;
+  }
+
   return {
     watchlistCount,
     candidateCount,
@@ -131,6 +141,7 @@ export async function loadObservabilityStatus(): Promise<ObservabilityStatus> {
       lastRun: formatMeasurementRun(lastMeasurementRun),
     },
     health,
+    websub,
     checkedAt: new Date().toISOString(),
   };
 }

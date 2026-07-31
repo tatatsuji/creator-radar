@@ -17,6 +17,7 @@
     "verify:measurement": "tsx --env-file=.env.local scripts/verify-measurement.ts",
     "observability:status": "tsx --env-file=.env.local scripts/observability-status.ts",
     "observability:daily-report": "tsx --env-file=.env.local scripts/observability-daily-report.ts",
+    "websub:status": "tsx --env-file=.env.local scripts/websub-status.ts",
     "validation:24h": "tsx --env-file=.env.local scripts/24h-validation-collection.ts",
     "validation:24h:finalize": "tsx --env-file=.env.local scripts/24h-validation-collection.ts --finalize",
     "locks:release-expired": "tsx --env-file=.env.local scripts/release-expired-measurement-locks.ts",

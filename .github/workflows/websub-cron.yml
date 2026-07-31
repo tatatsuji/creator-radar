@@ -1,0 +1,156 @@
+name: Creator Radar WebSub Cron
+
+on:
+  schedule:
+    # Subscribe new: daily 02:00 UTC
+    - cron: "0 2 * * *"
+    # Renew daily: daily 03:00 UTC
+    - cron: "0 3 * * *"
+    # Reconcile: daily 04:00 UTC
+    - cron: "0 4 * * *"
+    # Renew urgent: every 6 hours
+    - cron: "0 */6 * * *"
+    # Notification worker: every 15 minutes
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "WebSub job to run"
+        required: true
+        default: "websub-process-notifications"
+        type: choice
+        options:
+          - websub-subscribe-new
+          - websub-renew-urgent
+          - websub-renew-daily
+          - websub-reconcile
+          - websub-process-notifications
+
+concurrency:
+  group: websub-cron-${{ github.workflow }}-${{ github.ref }}-${{ github.event.schedule || github.event.inputs.job }}
+  cancel-in-progress: false
+
+env:
+  TZ: UTC
+
+jobs:
+  websub-subscribe-new:
+    if: |
+      github.event.schedule == '0 2 * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'websub-subscribe-new')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run WebSub subscribe-new
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          WEBSUB_ENABLED: ${{ secrets.WEBSUB_ENABLED }}
+          WEBSUB_HUB_SECRET: ${{ secrets.WEBSUB_HUB_SECRET }}
+          WEBSUB_APP_DOMAIN: ${{ secrets.WEBSUB_APP_DOMAIN }}
+          WEBSUB_CANARY_MAX_CHANNELS: ${{ secrets.WEBSUB_CANARY_MAX_CHANNELS }}
+        run: npm run cron:websub-subscribe-new
+
+  websub-renew-daily:
+    if: |
+      github.event.schedule == '0 3 * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'websub-renew-daily')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run WebSub renew-daily
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEBSUB_ENABLED: ${{ secrets.WEBSUB_ENABLED }}
+          WEBSUB_HUB_SECRET: ${{ secrets.WEBSUB_HUB_SECRET }}
+          WEBSUB_APP_DOMAIN: ${{ secrets.WEBSUB_APP_DOMAIN }}
+          WEBSUB_CANARY_MAX_CHANNELS: ${{ secrets.WEBSUB_CANARY_MAX_CHANNELS }}
+        run: npm run cron:websub-renew-daily
+
+  websub-reconcile:
+    if: |
+      github.event.schedule == '0 4 * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'websub-reconcile')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run WebSub reconcile
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEBSUB_ENABLED: ${{ secrets.WEBSUB_ENABLED }}
+          WEBSUB_HUB_SECRET: ${{ secrets.WEBSUB_HUB_SECRET }}
+          WEBSUB_APP_DOMAIN: ${{ secrets.WEBSUB_APP_DOMAIN }}
+          WEBSUB_CANARY_MAX_CHANNELS: ${{ secrets.WEBSUB_CANARY_MAX_CHANNELS }}
+        run: npm run cron:websub-reconcile
+
+  websub-renew-urgent:
+    if: |
+      github.event.schedule == '0 */6 * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'websub-renew-urgent')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run WebSub renew-urgent
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEBSUB_ENABLED: ${{ secrets.WEBSUB_ENABLED }}
+          WEBSUB_HUB_SECRET: ${{ secrets.WEBSUB_HUB_SECRET }}
+          WEBSUB_APP_DOMAIN: ${{ secrets.WEBSUB_APP_DOMAIN }}
+          WEBSUB_CANARY_MAX_CHANNELS: ${{ secrets.WEBSUB_CANARY_MAX_CHANNELS }}
+        run: npm run cron:websub-renew-urgent
+
+  websub-process-notifications:
+    if: |
+      github.event.schedule == '*/15 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'websub-process-notifications')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run WebSub notification worker
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          WEBSUB_ENABLED: ${{ secrets.WEBSUB_ENABLED }}
+          WEBSUB_HUB_SECRET: ${{ secrets.WEBSUB_HUB_SECRET }}
+          WEBSUB_APP_DOMAIN: ${{ secrets.WEBSUB_APP_DOMAIN }}
+        run: npm run cron:websub-process-notifications

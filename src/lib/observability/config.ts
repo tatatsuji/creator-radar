@@ -118,6 +118,11 @@ export const OBSERVABILITY_CONFIG = {
     githubActionsWatchlistDiscovery: "0 * * * *",
     githubActionsCandidateDiscovery: "0 */6 * * *",
     githubActionsAutoWatchlist: "30 3 * * *",
+    githubActionsWebsubSubscribeNew: "0 2 * * *",
+    githubActionsWebsubRenewUrgent: "0 */6 * * *",
+    githubActionsWebsubRenewDaily: "0 3 * * *",
+    githubActionsWebsubReconcile: "0 4 * * *",
+    githubActionsWebsubProcessNotifications: "*/15 * * * *",
   },
 
   health: {

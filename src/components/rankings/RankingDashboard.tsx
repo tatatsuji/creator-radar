@@ -4,9 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { HomeHero } from "@/components/home/HomeHero";
-import { RankingTypeGuide } from "@/components/home/RankingTypeGuide";
 import { RankingTypeTabs } from "@/components/home/RankingTypeTabs";
-import { ContentFilterShortcuts } from "@/components/home/ContentFilterShortcuts";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { RankingPanel } from "@/components/rankings/RankingPanel";
@@ -93,15 +91,13 @@ export function RankingDashboard({
         onSearchChange={setSearchQuery}
       />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
-        <section className="mb-6 space-y-5 sm:mb-8">
-          <HomeHero dataFreshnessAt={initialDataFreshnessAt} />
-          <RankingTypeTabs value={urlState.ranking} onChange={setRanking} />
-          <ContentFilterShortcuts homeUrlState={urlState} />
-          <RankingTypeGuide active={urlState.ranking} />
-        </section>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
+        <HomeHero dataFreshnessAt={initialDataFreshnessAt} />
 
-        <RankingPanel
+        <div className="mt-4 space-y-4 sm:mt-5">
+          <RankingTypeTabs value={urlState.ranking} onChange={setRanking} />
+
+          <RankingPanel
           active
           ranking={urlState.ranking}
           searchQuery={searchQuery}
@@ -122,7 +118,8 @@ export function RankingDashboard({
           initialReadiness={useInitialPayload ? initialReadiness : undefined}
           initialAvailableGenres={initialAvailableGenres}
           initialError={useInitialPayload ? initialError : null}
-        />
+          />
+        </div>
       </main>
 
       <SiteFooter />

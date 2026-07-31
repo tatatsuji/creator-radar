@@ -245,16 +245,15 @@ export function RankingPanel({
       id={`home-ranking-panel-${ranking}`}
       role="tabpanel"
       aria-labelledby={`home-ranking-tab-${ranking}`}
-      className="space-y-6"
+      className="space-y-4"
     >
-      <div className="space-y-2">
-        <h2 className="text-xl font-bold text-zinc-50 sm:text-2xl">
-          {panelTitle}
-        </h2>
-        <p className="text-sm text-zinc-400 sm:text-base">
-          {HOME_UI_RANKING_DESCRIPTIONS[ranking]}
-        </p>
-        <p className="text-sm text-zinc-500">{statusLine}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-xl font-bold text-zinc-50 sm:text-2xl">
+            {panelTitle}
+          </h2>
+          <p className="text-xs text-zinc-500 sm:text-sm">{statusLine}</p>
+        </div>
       </div>
 
       {showViewContext ? (

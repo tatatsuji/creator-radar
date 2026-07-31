@@ -23,7 +23,6 @@ interface RankingDashboardProps {
   initialGenre?: GenreId;
   initialUpdatedAt?: string;
   initialDataFreshnessAt?: string | null;
-  initialMetricsSummary?: { measured: number; estimated: number };
   initialReadiness?: RankingReadiness;
   initialAvailableGenres?: GenreId[];
   initialError?: string | null;
@@ -36,7 +35,6 @@ export function RankingDashboard({
   initialGenre = "all",
   initialUpdatedAt,
   initialDataFreshnessAt = null,
-  initialMetricsSummary = { measured: 0, estimated: 0 },
   initialReadiness = {
     status: "ready",
     eligibleCount: 0,
@@ -114,7 +112,6 @@ export function RankingDashboard({
           initialGenre={initialGenre}
           initialUpdatedAt={initialUpdatedAt}
           initialDataFreshnessAt={initialDataFreshnessAt}
-          initialMetricsSummary={initialMetricsSummary}
           initialReadiness={useInitialPayload ? initialReadiness : undefined}
           initialAvailableGenres={initialAvailableGenres}
           initialError={useInitialPayload ? initialError : null}

@@ -45,6 +45,27 @@ export default function DataPage() {
           </section>
 
           <section className="space-y-3">
+            <h2 className="text-base font-semibold text-zinc-100">計測カバレッジ（参考）</h2>
+            <p className="text-sm leading-relaxed text-zinc-400">
+              開発・運用向けの指標として、一覧内の動画が「実測」「推定」のどちらで評価されているかを集計できます。一般向けのホーム画面では表示しませんが、用語の意味は次のとおりです。
+            </p>
+            <div className="space-y-3 text-sm leading-relaxed text-zinc-400">
+              <p>
+                <span className="font-medium text-zinc-300">実測 ○件</span>
+                ：定期取得したスナップショットが十分ある動画の件数です。
+              </p>
+              <p>
+                <span className="font-medium text-zinc-300">推定 ○件</span>
+                ：公開情報から算出している参考値の動画の件数です。
+              </p>
+              <p>
+                <span className="font-medium text-zinc-300">カバレッジ ○%</span>
+                ：一覧内で実測データが使える動画の割合です。
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-3">
             <h2 className="text-base font-semibold text-zinc-100">データの蓄積</h2>
             <p className="text-sm leading-relaxed text-zinc-400">
               動画ごとに計測データが増えると、実測推移グラフや期間別の増加数が表示されるようになります。計測開始直後は「準備中」「データ不足」と表示されることがあります。

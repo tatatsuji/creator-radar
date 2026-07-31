@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DataAccumulatingPanel } from "@/components/home/DataAccumulatingPanel";
-import { MetricsCoverageBanner } from "@/components/rankings/MetricsCoverageBanner";
 import { RankingFiltersBar } from "@/components/rankings/RankingFiltersBar";
 import { ContentFilterBanner } from "@/components/rankings/ContentFilterBanner";
 import { VideoCard } from "@/components/rankings/VideoCard";
@@ -37,7 +36,6 @@ interface RankingPanelProps {
   initialGenre: GenreId;
   initialUpdatedAt?: string;
   initialDataFreshnessAt?: string | null;
-  initialMetricsSummary?: { measured: number; estimated: number };
   initialReadiness?: RankingReadiness;
   initialAvailableGenres?: GenreId[];
   initialError?: string | null;
@@ -60,7 +58,6 @@ export function RankingPanel({
   initialGenre,
   initialUpdatedAt,
   initialDataFreshnessAt = null,
-  initialMetricsSummary = { measured: 0, estimated: 0 },
   initialReadiness = {
     status: "ready",
     eligibleCount: 0,
@@ -81,7 +78,6 @@ export function RankingPanel({
   const [dataFreshnessAt, setDataFreshnessAt] = useState<string | null>(
     initialDataFreshnessAt,
   );
-  const [metricsSummary, setMetricsSummary] = useState(initialMetricsSummary);
   const [expandedBuzzKeys, setExpandedBuzzKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
@@ -124,7 +120,6 @@ export function RankingPanel({
           videos?: Video[];
           updatedAt?: string;
           dataFreshnessAt?: string | null;
-          metricsSummary?: { measured: number; estimated: number };
           availableGenres?: GenreId[];
           readiness?: RankingReadiness;
           error?: string;
@@ -149,9 +144,6 @@ export function RankingPanel({
         }
         if ("dataFreshnessAt" in data) {
           setDataFreshnessAt(data.dataFreshnessAt ?? null);
-        }
-        if (data.metricsSummary) {
-          setMetricsSummary(data.metricsSummary);
         }
       } catch (fetchError) {
         if (controller.signal.aborted) {
@@ -269,18 +261,6 @@ export function RankingPanel({
         onGenreChange={onGenreChange}
         onFormatChange={onFormatChange}
       />
-
-      <div className="space-y-3">
-        {!loading && !error && ranking === "buzz" ? (
-          <MetricsCoverageBanner
-            measured={metricsSummary.measured}
-            estimated={metricsSummary.estimated}
-            total={videos.length}
-            updatedAt={updatedAt}
-            dataFreshnessAt={dataFreshnessAt}
-          />
-        ) : null}
-      </div>
 
       {error ? (
         <StatePanel

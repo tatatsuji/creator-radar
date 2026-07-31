@@ -77,12 +77,18 @@ export function VideoAnalysisHeader({
                 {video.channel.name}
               </p>
               <p className="text-xs text-zinc-500 sm:text-sm">
-                登録者{" "}
-                {formatSubscriberCount(
-                  video.channel.subscriberCount,
-                  video.channel.subscriberCountHidden,
-                )}
-                · 公開 {formatRelativePublishedAt(video.publishedAt)}
+                {[
+                  !video.channel.subscriberCountHidden &&
+                  video.channel.subscriberCount > 0
+                    ? `登録者 ${formatSubscriberCount(
+                        video.channel.subscriberCount,
+                        video.channel.subscriberCountHidden,
+                      )}`
+                    : null,
+                  `公開 ${formatRelativePublishedAt(video.publishedAt)}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
           </div>

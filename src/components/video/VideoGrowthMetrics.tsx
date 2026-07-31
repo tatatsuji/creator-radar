@@ -18,6 +18,14 @@ interface VideoGrowthMetricsProps {
   compact?: boolean;
 }
 
+interface MetricItem {
+  key: string;
+  label: string;
+  value: string;
+  accent?: boolean;
+  note?: string;
+}
+
 export function VideoGrowthMetrics({
   video,
   period,
@@ -25,6 +33,11 @@ export function VideoGrowthMetrics({
 }: VideoGrowthMetricsProps) {
   const velocity = getVelocityDisplay(video, period);
   const isMeasured = video.metrics.metricsSource === "measured";
+  const metrics = buildVisibleMetrics({ video, period, velocity, isMeasured });
+
+  if (metrics.length === 0) {
+    return null;
+  }
 
   return (
     <section
@@ -43,38 +56,93 @@ export function VideoGrowthMetrics({
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <MetricCard
-          label={getPeriodIncreaseLabel(period)}
-          value={formatViewDelta(video.metrics.viewDelta)}
-          accent={isMeasured}
-          note={isMeasured ? "実測ベース" : "推定ベース"}
-        />
-        <MetricCard
-          label={getVelocityLabel(video.metrics.metricsSource)}
-          value={`${velocity.value}${velocity.unit}`}
-          accent
-          note="現在の再生速度"
-        />
-        <MetricCard
-          label={RANKING_REFERENCE_LABEL}
-          value={formatRankingScoreValue(video.metrics.rankingScore)}
-          accent
-        />
-        <MetricCard label="総再生数" value={formatTotalViews(video.viewCount)} />
-        <MetricCard
-          label="再生/登録者比"
-          value={formatViewsPerSubscriber(
-            video.metrics.viewsPerSubscriber,
-            video.channel.subscriberCountHidden,
-          )}
-        />
-        <MetricCard
-          label="動画時間"
-          value={formatDurationSeconds(video.durationSeconds)}
-        />
+        {metrics.map((metric) => (
+          <MetricCard
+            key={metric.key}
+            label={metric.label}
+            value={metric.value}
+            accent={metric.accent}
+            note={metric.note}
+          />
+        ))}
       </div>
     </section>
   );
+}
+
+function buildVisibleMetrics({
+  video,
+  period,
+  velocity,
+  isMeasured,
+}: {
+  video: Video;
+  period: RankingPeriod;
+  velocity: ReturnType<typeof getVelocityDisplay>;
+  isMeasured: boolean;
+}): MetricItem[] {
+  const items: MetricItem[] = [];
+
+  if (video.metrics.viewDelta > 0) {
+    items.push({
+      key: "view-delta",
+      label: getPeriodIncreaseLabel(period),
+      value: formatViewDelta(video.metrics.viewDelta),
+      accent: isMeasured,
+      note: isMeasured ? "実測ベース" : "推定ベース",
+    });
+  }
+
+  if (velocity.numeric > 0) {
+    items.push({
+      key: "velocity",
+      label: getVelocityLabel(video.metrics.metricsSource),
+      value: `${velocity.value}${velocity.unit}`,
+      accent: true,
+      note: "現在の再生速度",
+    });
+  }
+
+  if (video.metrics.rankingScore > 0) {
+    items.push({
+      key: "ranking-score",
+      label: RANKING_REFERENCE_LABEL,
+      value: formatRankingScoreValue(video.metrics.rankingScore),
+      accent: true,
+    });
+  }
+
+  if (video.viewCount > 0) {
+    items.push({
+      key: "view-count",
+      label: "総再生数",
+      value: formatTotalViews(video.viewCount),
+    });
+  }
+
+  if (
+    !video.channel.subscriberCountHidden &&
+    video.metrics.viewsPerSubscriber > 0
+  ) {
+    items.push({
+      key: "views-per-subscriber",
+      label: "再生/登録者比",
+      value: formatViewsPerSubscriber(
+        video.metrics.viewsPerSubscriber,
+        video.channel.subscriberCountHidden,
+      ),
+    });
+  }
+
+  if (video.durationSeconds && video.durationSeconds > 0) {
+    items.push({
+      key: "duration",
+      label: "動画時間",
+      value: formatDurationSeconds(video.durationSeconds),
+    });
+  }
+
+  return items;
 }
 
 function MetricCard({

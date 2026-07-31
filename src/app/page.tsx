@@ -38,7 +38,6 @@ export default async function Home({ searchParams }: HomeProps) {
   let availableGenres: GenreId[] = ["all"];
   let initialUpdatedAt = new Date().toISOString();
   let initialDataFreshnessAt: string | null = null;
-  let initialMetricsSummary = { measured: 0, estimated: 0 };
   let initialReadiness: RankingReadiness = {
     status: "ready",
     eligibleCount: 0,
@@ -55,7 +54,6 @@ export default async function Home({ searchParams }: HomeProps) {
     initialVideos = payload.videos;
     initialUpdatedAt = payload.updatedAt;
     initialDataFreshnessAt = payload.dataFreshnessAt;
-    initialMetricsSummary = payload.metricsSummary;
     initialReadiness = payload.readiness;
   } catch (error) {
     initialError = getRankingErrorMessage(error);
@@ -70,7 +68,6 @@ export default async function Home({ searchParams }: HomeProps) {
         initialGenre={urlState.genre}
         initialUpdatedAt={initialUpdatedAt}
         initialDataFreshnessAt={initialDataFreshnessAt}
-        initialMetricsSummary={initialMetricsSummary}
         initialReadiness={initialReadiness}
         initialAvailableGenres={availableGenres}
         initialError={initialError}

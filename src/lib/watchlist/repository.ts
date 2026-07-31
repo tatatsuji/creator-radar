@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
-import { computeDefaultNextCheckAt } from "@/lib/observability/scheduling";
+import {
+  computeNextWatchlistCheckAt,
+  determineInitialWatchTier,
+} from "@/lib/watchlist/watchTier";
+import { computeWatchlistFailureNextCheckAt } from "@/lib/watchlist/watchlistFailureBackoff";
 import {
   createSupabaseServerClient,
   isSupabaseConfigured,
@@ -22,13 +26,22 @@ export function isWatchlistLockActive(
   return new Date(lockedUntil).getTime() > nowMs;
 }
 
+export function isWatchlistPollingEligible(
+  row: Pick<ChannelWatchlistRow, "watch_status" | "watch_tier">,
+): boolean {
+  if (!ACTIVE_WATCH_STATUSES.includes(row.watch_status as WatchStatus)) {
+    return false;
+  }
+  return row.watch_tier !== "archive";
+}
+
 export function filterDueWatchlistChannels(
   rows: ChannelWatchlistRow[],
   limit: number,
   nowMs: number = Date.now(),
 ): ChannelWatchlistRow[] {
   return rows
-    .filter((row) => ACTIVE_WATCH_STATUSES.includes(row.watch_status as WatchStatus))
+    .filter((row) => isWatchlistPollingEligible(row))
     .filter((row) => {
       const isDue =
         !row.next_check_at ||
@@ -49,6 +62,8 @@ export interface UpsertWatchlistChannelInput {
   watchTier?: WatchTier;
   watchStatus?: WatchStatus;
   nextCheckAt?: string | null;
+  /** Used for initial tier when channels.subscriber_count is unavailable. */
+  subscriberCount?: number | null;
 }
 
 export interface WatchlistLockHandle {
@@ -64,6 +79,57 @@ function assertSupabaseConfigured(): void {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+async function lookupChannelSubscriberCount(
+  channelId: string,
+): Promise<number | null> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("channels")
+    .select("subscriber_count, subscriber_count_hidden")
+    .eq("youtube_channel_id", channelId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`channels subscriber lookup failed: ${error.message}`);
+  }
+
+  if (!data || data.subscriber_count_hidden) {
+    return null;
+  }
+
+  return data.subscriber_count ?? null;
+}
+
+async function resolveWatchTierForUpsert(
+  input: UpsertWatchlistChannelInput,
+): Promise<WatchTier> {
+  if (input.watchTier) {
+    return input.watchTier;
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data: existing, error } = await supabase
+    .from("channel_watchlist")
+    .select("watch_tier")
+    .eq("channel_id", input.channelId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`channel_watchlist lookup failed: ${error.message}`);
+  }
+
+  if (existing?.watch_tier && isWatchTier(existing.watch_tier)) {
+    return existing.watch_tier;
+  }
+
+  const subscriberCount =
+    input.subscriberCount !== undefined
+      ? input.subscriberCount
+      : await lookupChannelSubscriberCount(input.channelId);
+
+  return determineInitialWatchTier(subscriberCount);
 }
 
 export async function upsertWatchlistChannel(
@@ -83,6 +149,7 @@ export async function upsertWatchlistChannel(
 
   const supabase = createSupabaseServerClient();
   const now = nowIso();
+  const watchTier = await resolveWatchTierForUpsert(input);
 
   const { error } = await supabase.from("channel_watchlist").upsert(
     {
@@ -92,7 +159,7 @@ export async function upsertWatchlistChannel(
       source: input.source ?? null,
       priority: input.priority ?? 0,
       notes: input.notes ?? null,
-      watch_tier: input.watchTier ?? OBSERVABILITY_CONFIG.defaults.watchTier,
+      watch_tier: watchTier,
       watch_status:
         input.watchStatus ?? OBSERVABILITY_CONFIG.defaults.watchStatus,
       next_check_at:
@@ -121,6 +188,7 @@ export async function getDueWatchlistChannels(
     .from("channel_watchlist")
     .select("*")
     .in("watch_status", ACTIVE_WATCH_STATUSES)
+    .neq("watch_tier", "archive")
     .order("priority", { ascending: false })
     .order("next_check_at", { ascending: true, nullsFirst: true })
     .limit(limit * 3);
@@ -160,7 +228,8 @@ export async function countDueWatchlistChannels(): Promise<number> {
   const { data, error } = await supabase
     .from("channel_watchlist")
     .select("*")
-    .in("watch_status", ACTIVE_WATCH_STATUSES);
+    .in("watch_status", ACTIVE_WATCH_STATUSES)
+    .neq("watch_tier", "archive");
 
   if (error) {
     throw new Error(`channel_watchlist due count failed: ${error.message}`);
@@ -193,20 +262,27 @@ export async function updateWatchlistNextCheckAt(
   }
 }
 
-export async function markWatchlistChecked(channelId: string): Promise<void> {
+export async function markWatchlistChecked(
+  channelId: string,
+  watchTier: WatchTier,
+): Promise<void> {
+  if (!isWatchTier(watchTier)) {
+    throw new Error(`Invalid watch tier: ${watchTier}`);
+  }
+
   assertSupabaseConfigured();
 
   const supabase = createSupabaseServerClient();
-  const now = nowIso();
-  const nextCheckAt = computeDefaultNextCheckAt(new Date());
+  const now = new Date();
+  const nextCheckAt = computeNextWatchlistCheckAt(watchTier, now);
 
   const { error } = await supabase
     .from("channel_watchlist")
     .update({
-      last_checked_at: now,
+      last_checked_at: now.toISOString(),
       next_check_at: nextCheckAt.toISOString(),
       failure_count: 0,
-      updated_at: now,
+      updated_at: nowIso(),
     })
     .eq("channel_id", channelId);
 
@@ -215,9 +291,10 @@ export async function markWatchlistChecked(channelId: string): Promise<void> {
   }
 }
 
-export async function incrementWatchlistFailureCount(
+export async function markWatchlistFailure(
   channelId: string,
-): Promise<void> {
+  measuredAt: Date = new Date(),
+): Promise<number> {
   assertSupabaseConfigured();
 
   const supabase = createSupabaseServerClient();
@@ -234,10 +311,12 @@ export async function incrementWatchlistFailureCount(
   }
 
   const nextCount = (data?.failure_count ?? 0) + 1;
+  const nextCheckAt = computeWatchlistFailureNextCheckAt(measuredAt, nextCount);
   const { error } = await supabase
     .from("channel_watchlist")
     .update({
       failure_count: nextCount,
+      next_check_at: nextCheckAt.toISOString(),
       updated_at: nowIso(),
     })
     .eq("channel_id", channelId);
@@ -245,6 +324,15 @@ export async function incrementWatchlistFailureCount(
   if (error) {
     throw new Error(`channel_watchlist failure update failed: ${error.message}`);
   }
+
+  return nextCount;
+}
+
+/** @deprecated Use markWatchlistFailure — kept for test mocks during migration. */
+export async function incrementWatchlistFailureCount(
+  channelId: string,
+): Promise<void> {
+  await markWatchlistFailure(channelId);
 }
 
 export async function acquireWatchlistLock(
@@ -348,4 +436,106 @@ export async function updateWatchlistTierAndStatus(
   if (error) {
     throw new Error(`channel_watchlist tier/status update failed: ${error.message}`);
   }
+}
+
+export async function isChannelOnWatchlist(channelId: string): Promise<boolean> {
+  assertSupabaseConfigured();
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("channel_watchlist")
+    .select("channel_id")
+    .eq("channel_id", channelId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`channel_watchlist lookup failed: ${error.message}`);
+  }
+
+  return Boolean(data?.channel_id);
+}
+
+export async function getWatchlistChannelById(
+  channelId: string,
+): Promise<ChannelWatchlistRow | null> {
+  assertSupabaseConfigured();
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("channel_watchlist")
+    .select("*")
+    .eq("channel_id", channelId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`channel_watchlist lookup failed: ${error.message}`);
+  }
+
+  return (data as ChannelWatchlistRow | null) ?? null;
+}
+
+export async function listWatchlistChannels(): Promise<ChannelWatchlistRow[]> {
+  assertSupabaseConfigured();
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("channel_watchlist")
+    .select("*")
+    .order("priority", { ascending: false })
+    .order("channel_id", { ascending: true });
+
+  if (error) {
+    throw new Error(`channel_watchlist list failed: ${error.message}`);
+  }
+
+  return (data ?? []) as ChannelWatchlistRow[];
+}
+
+export async function insertWatchlistChannelIfAbsent(
+  input: UpsertWatchlistChannelInput,
+): Promise<"inserted" | "exists"> {
+  assertSupabaseConfigured();
+
+  if (await isChannelOnWatchlist(input.channelId)) {
+    return "exists";
+  }
+
+  if (input.watchTier && !isWatchTier(input.watchTier)) {
+    throw new Error(`Invalid watch tier: ${input.watchTier}`);
+  }
+  if (input.watchStatus && !isWatchStatus(input.watchStatus)) {
+    throw new Error(`Invalid watch status: ${input.watchStatus}`);
+  }
+
+  const supabase = createSupabaseServerClient();
+  const now = nowIso();
+  const watchTier =
+    input.watchTier ??
+    determineInitialWatchTier(
+      input.subscriberCount !== undefined
+        ? input.subscriberCount
+        : await lookupChannelSubscriberCount(input.channelId),
+    );
+
+  const { error } = await supabase.from("channel_watchlist").insert({
+    channel_id: input.channelId,
+    name: input.name ?? null,
+    category: input.category ?? null,
+    source: input.source ?? null,
+    priority: input.priority ?? 0,
+    notes: input.notes ?? null,
+    watch_tier: watchTier,
+    watch_status: input.watchStatus ?? OBSERVABILITY_CONFIG.defaults.watchStatus,
+    next_check_at: input.nextCheckAt === undefined ? now : input.nextCheckAt,
+    updated_at: now,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return "exists";
+    }
+    throw new Error(`channel_watchlist insert failed: ${error.message}`);
+  }
+
+  return "inserted";
 }

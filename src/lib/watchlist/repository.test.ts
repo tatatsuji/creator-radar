@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterDueWatchlistChannels,
   isWatchlistLockActive,
+  isWatchlistPollingEligible,
 } from "@/lib/watchlist/repository";
 import type { ChannelWatchlistRow } from "@/types/database";
 
@@ -53,11 +54,31 @@ describe("watchlist lock helpers", () => {
         channel_id: "UCfuture00000000000003",
         next_check_at: "2026-07-24T13:00:00.000Z",
       }),
+      makeRow({
+        channel_id: "UCarchive00000000000004",
+        watch_tier: "archive",
+        next_check_at: "2026-07-24T11:00:00.000Z",
+      }),
     ];
 
     const due = filterDueWatchlistChannels(rows, 10, nowMs);
     expect(due.map((row) => row.channel_id)).toEqual([
       "UCdue00000000000000001",
     ]);
+  });
+
+  it("excludes archive tier from polling eligibility", () => {
+    expect(
+      isWatchlistPollingEligible({
+        watch_status: "active",
+        watch_tier: "archive",
+      }),
+    ).toBe(false);
+    expect(
+      isWatchlistPollingEligible({
+        watch_status: "active",
+        watch_tier: "hot",
+      }),
+    ).toBe(true);
   });
 });

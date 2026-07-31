@@ -3,13 +3,19 @@ import {
   acquireMeasurementLocks,
   getDueVideos,
   incrementFailureCount,
+  markMeasurementAdaptiveSuccess,
   markMeasurementFailure,
   markMeasurementStoppedForUnavailable,
-  markMeasurementSuccess,
   markMeasurementVideoItemMissing,
   releaseMeasurementLock,
   type MeasurementLockHandle,
+  type MarkMeasurementAdaptiveSuccessResult,
 } from "@/lib/measurement/scheduleRepository";
+import {
+  aggregateAdaptiveMeasurementQuota,
+  estimateAdaptiveMeasurementQuota,
+  type AdaptiveMeasurementQuotaEstimate,
+} from "@/lib/measurement/adaptiveMeasurementQuota";
 import {
   fetchChannelSubscriberCountsBatch,
   fetchVideoStatisticsBatch,
@@ -52,6 +58,9 @@ export interface MeasurementRunResult {
   videosFailed: number;
   notFound: number;
   youtubeQuotaEstimate: number;
+  adaptiveQuota: AdaptiveMeasurementQuotaEstimate & {
+    tierChanges: number;
+  };
   availability: VideoAvailabilityBatchSummary;
   startedAt: string;
   finishedAt: string;
@@ -68,7 +77,7 @@ export interface MeasurementDeps {
   insertSnapshot: typeof insertVideoSnapshotRaw;
   fillSubscriberCountIfNull: typeof fillVideoSnapshotSubscriberCountIfNull;
   updateLastObservedAt: typeof updateVideoLastObservedAt;
-  markSuccess: typeof markMeasurementSuccess;
+  markSuccess: typeof markMeasurementAdaptiveSuccess;
   markFailure: typeof markMeasurementFailure;
   markVideoItemMissing: typeof markMeasurementVideoItemMissing;
   incrementFailure: typeof incrementFailureCount;
@@ -91,7 +100,7 @@ const defaultDeps: MeasurementDeps = {
   insertSnapshot: insertVideoSnapshotRaw,
   fillSubscriberCountIfNull: fillVideoSnapshotSubscriberCountIfNull,
   updateLastObservedAt: updateVideoLastObservedAt,
-  markSuccess: markMeasurementSuccess,
+  markSuccess: markMeasurementAdaptiveSuccess,
   markFailure: markMeasurementFailure,
   markVideoItemMissing: markMeasurementVideoItemMissing,
   incrementFailure: incrementFailureCount,
@@ -123,7 +132,7 @@ async function processNotFoundVideo(
 ): Promise<void> {
   const tier = isMeasurementTier(schedule.measurement_tier)
     ? schedule.measurement_tier
-    : ("hot" satisfies MeasurementTier);
+    : ("normal" satisfies MeasurementTier);
 
   await deps.markVideoItemMissing(schedule.video_id, tier, measuredAt);
   errors.push({ videoId: schedule.video_id, reason: "video_item_missing" });
@@ -162,6 +171,7 @@ async function processSuccessfulVideo(
   availabilityStates: Map<string, VideoAvailabilityState>,
   availabilitySummary: VideoAvailabilityBatchSummary,
   nowIso: string,
+  adaptiveResults: MarkMeasurementAdaptiveSuccessResult[],
 ): Promise<"inserted" | "skipped" | "duplicate_in_run"> {
   if (insertedInRun.has(schedule.video_id)) {
     return "duplicate_in_run";
@@ -203,9 +213,16 @@ async function processSuccessfulVideo(
 
   const tier = isMeasurementTier(schedule.measurement_tier)
     ? schedule.measurement_tier
-    : ("hot" satisfies MeasurementTier);
+    : ("normal" satisfies MeasurementTier);
 
-  await deps.markSuccess(schedule.video_id, tier, measuredAt);
+  const adaptiveResult = await deps.markSuccess(
+    schedule.video_id,
+    tier,
+    stats.viewCount,
+    schedule.last_measured_at,
+    measuredAt,
+  );
+  adaptiveResults.push(adaptiveResult);
   return snapshotResult === "inserted" ? "inserted" : "skipped";
 }
 
@@ -257,6 +274,7 @@ export async function runMeasurement(
     lockedVideoIds.length,
   );
   const availabilityStates = await deps.fetchAvailabilityStates(lockedVideoIds);
+  const adaptiveResults: MarkMeasurementAdaptiveSuccessResult[] = [];
 
   if (uniqueChannelIds.length > 0) {
     const { subscriberCounts, quotaUsed: channelQuotaUsed } =
@@ -341,6 +359,7 @@ export async function runMeasurement(
             availabilityStates,
             availabilitySummary,
             nowIso,
+            adaptiveResults,
           );
 
           if (snapshotResult === "inserted") {
@@ -373,6 +392,14 @@ export async function runMeasurement(
     }
 
     const finishedAt = new Date();
+    const adaptiveQuota = {
+      ...aggregateAdaptiveMeasurementQuota(
+        adaptiveResults.map((result) =>
+          estimateAdaptiveMeasurementQuota(result.previousTier, result.nextTier),
+        ),
+      ),
+      tierChanges: adaptiveResults.filter((result) => result.tierChanged).length,
+    };
     const status =
       videosFailed === 0
         ? "success"
@@ -398,6 +425,7 @@ export async function runMeasurement(
         snapshotsInserted,
         notFound,
         availability: availabilitySummary,
+        adaptiveQuota,
         startedAt: startedAt.toISOString(),
         finishedAt: finishedAt.toISOString(),
         errors: errors.slice(0, 20),
@@ -415,6 +443,7 @@ export async function runMeasurement(
       videosFailed,
       notFound,
       youtubeQuotaEstimate,
+      adaptiveQuota,
       availability: availabilitySummary,
       startedAt: startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),

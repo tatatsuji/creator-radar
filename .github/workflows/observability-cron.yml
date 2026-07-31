@@ -4,19 +4,25 @@ on:
   schedule:
     # Measurement: hourly at :15 UTC
     - cron: "15 * * * *"
-    # Discovery: every 6 hours (primary — Vercel Hobby cannot run sub-daily crons)
+    # Watchlist Discovery: hourly — due channels only (next_check_at <= now)
+    - cron: "0 * * * *"
+    # Candidate Engine: every 6 hours
     - cron: "0 */6 * * *"
+    # Auto Watchlist: daily tier evaluation
+    - cron: "30 3 * * *"
   workflow_dispatch:
     inputs:
       job:
-        description: "Job to run (avoid 'both' unless intentional)"
+        description: "Job to run"
         required: true
         default: "measurement"
         type: choice
         options:
           - measurement
-          - discovery
-          - both
+          - watchlist-discovery
+          - candidate-discovery
+          - auto-watchlist
+          - discovery-both
 
 concurrency:
   group: observability-cron-${{ github.workflow }}-${{ github.ref }}
@@ -29,7 +35,7 @@ jobs:
   measurement:
     if: |
       github.event.schedule == '15 * * * *' ||
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'measurement' || github.event.inputs.job == 'both'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'measurement')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -47,10 +53,31 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: npm run cron:measurement
 
-  discovery:
+  watchlist-discovery:
+    if: |
+      github.event.schedule == '0 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'watchlist-discovery')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run watchlist discovery (hourly due channels)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: npm run cron:watchlist-discovery
+
+  candidate-discovery:
     if: |
       github.event.schedule == '0 */6 * * *' ||
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'discovery' || github.event.inputs.job == 'both'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'candidate-discovery')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -61,7 +88,49 @@ jobs:
           cache: npm
       - run: npm ci
       - run: touch .env.local
-      - name: Run discovery (primary 6h schedule)
+      - name: Run candidate discovery (6h schedule)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: npm run cron:candidate-discovery
+
+  auto-watchlist:
+    if: |
+      github.event.schedule == '30 3 * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'auto-watchlist')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run auto watchlist (daily tier evaluation)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: npm run cron:auto-watchlist
+
+  discovery-both:
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.job == 'discovery-both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: touch .env.local
+      - name: Run combined discovery (local integration only)
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

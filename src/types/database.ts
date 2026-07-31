@@ -51,6 +51,7 @@ export interface ChannelRow {
   country: string | null;
   default_language: string | null;
   last_upload_at: string | null;
+  uploads_playlist_id: string | null;
   created_at: string;
   updated_at: string;
 }

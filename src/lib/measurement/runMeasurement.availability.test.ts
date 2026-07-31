@@ -76,7 +76,12 @@ describe("runMeasurement availability", () => {
       ["video-b", activeState()],
     ]);
 
-    const markSuccess = vi.fn().mockResolvedValue(undefined);
+    const markSuccess = vi.fn().mockResolvedValue({
+      previousTier: "hot",
+      nextTier: "normal",
+      reason: "default_normal",
+      tierChanged: false,
+    });
     const insertSnapshot = vi.fn().mockResolvedValue("inserted");
 
     const result = await runMeasurement({
@@ -139,7 +144,12 @@ describe("runMeasurement availability", () => {
       }),
       insertSnapshot: vi.fn().mockResolvedValue("inserted"),
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
-      markSuccess: vi.fn().mockResolvedValue(undefined),
+      markSuccess: vi.fn().mockResolvedValue({
+        previousTier: "hot",
+        nextTier: "normal",
+        reason: "default_normal",
+        tierChanged: false,
+      }),
     });
 
     expect(states.get("video-a")?.availabilityStatus).toBe("active");
@@ -317,7 +327,12 @@ describe("runMeasurement availability", () => {
       }),
       insertSnapshot: vi.fn().mockResolvedValue("inserted"),
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
-      markSuccess: vi.fn().mockResolvedValue(undefined),
+      markSuccess: vi.fn().mockResolvedValue({
+        previousTier: "hot",
+        nextTier: "normal",
+        reason: "default_normal",
+        tierChanged: false,
+      }),
     });
 
     expect(result.availability.recoveredToActive).toBe(1);
@@ -411,7 +426,12 @@ describe("runMeasurement availability", () => {
       }),
       insertSnapshot,
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
-      markSuccess: vi.fn().mockResolvedValue(undefined),
+      markSuccess: vi.fn().mockResolvedValue({
+        previousTier: "hot",
+        nextTier: "normal",
+        reason: "default_normal",
+        tierChanged: false,
+      }),
     });
 
     expect(insertSnapshot).toHaveBeenCalledTimes(1);

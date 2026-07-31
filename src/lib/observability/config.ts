@@ -33,10 +33,20 @@ export const OBSERVABILITY_CONFIG = {
     searchCallsPerRun: 2,
   },
 
+  autoWatchlist: {
+    /** Daily Auto Watchlist tier evaluation (promote/demote/restore). */
+    cronIntervalMs: 24 * 60 * 60 * 1000,
+  },
+
+  watchlistDiscovery: {
+    /** GHA watchlist cron interval — hourly; only due channels are polled per run. */
+    cronIntervalMs: 60 * 60 * 1000,
+  },
+
   phase1Discovery: {
     /** Primary Phase1 success metric: Discovery Recall (see docs/discovery-recall.md). */
     primaryMetric: "discovery_recall" as const,
-    /** Discovery cron interval — must match vercel.json discovery schedule (6h). */
+    /** Candidate Engine cron interval — drives category rotation run index (6h). */
     discoveryRunIntervalMs: 6 * 60 * 60 * 1000,
     categoryGenres: [
       "entertainment",
@@ -97,16 +107,17 @@ export const OBSERVABILITY_CONFIG = {
   },
 
   /**
-   * Cron schedules.
-   * Discovery primary: GitHub Actions every 6h (Vercel Hobby cannot run sub-daily crons).
-   * Measurement: Vercel daily 02:00 UTC + GHA hourly for freshness.
+   * Cron schedules (GitHub Actions primary for watchlist + candidate + measurement).
+   * Each schedule triggers a separate workflow run with github.event.schedule set.
    */
   cronSchedules: {
     legacySnapshot: "0 0 * * *",
     vercelDiscovery: "disabled",
     vercelMeasurement: "0 2 * * *",
     githubActionsMeasurement: "15 * * * *",
-    githubActionsDiscovery: "0 */6 * * *",
+    githubActionsWatchlistDiscovery: "0 * * * *",
+    githubActionsCandidateDiscovery: "0 */6 * * *",
+    githubActionsAutoWatchlist: "30 3 * * *",
   },
 
   health: {

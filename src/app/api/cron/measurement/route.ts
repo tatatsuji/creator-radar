@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { runMeasurement } from "@/lib/measurement/runMeasurement";
+import { runMeasurementCron } from "@/lib/measurement/runMeasurementCron";
 import { assertCronAuthorized } from "@/lib/cron/responses";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 
@@ -21,7 +21,7 @@ async function handleMeasurementCron(request: NextRequest) {
   }
 
   try {
-    const result = await runMeasurement();
+    const result = await runMeasurementCron();
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(

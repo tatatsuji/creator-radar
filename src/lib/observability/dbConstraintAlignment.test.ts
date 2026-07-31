@@ -14,8 +14,21 @@ const SHORTS_GENRE_MIGRATION_PATH = path.join(
   "supabase/migrations/007_ranking_snapshots_shorts_genre.sql",
 );
 
+const ADAPTIVE_MEASUREMENT_MIGRATION_PATH = path.join(
+  process.cwd(),
+  "supabase/migrations/012_adaptive_measurement_tiers.sql",
+);
+
 function readMigrationSql(): string {
   return readFileSync(MIGRATION_PATH, "utf8");
+}
+
+function readAdaptiveMeasurementMigrationSql(): string {
+  return readFileSync(ADAPTIVE_MEASUREMENT_MIGRATION_PATH, "utf8");
+}
+
+function readMeasurementTierMigrationSql(): string {
+  return readMigrationSql() + readAdaptiveMeasurementMigrationSql();
 }
 
 describe("migration CHECK alignment", () => {
@@ -34,8 +47,9 @@ describe("migration CHECK alignment", () => {
   });
 
   it("includes every measurement tier and status in CHECK constraints", () => {
+    const measurementTierSql = readMeasurementTierMigrationSql();
     for (const tier of DB_CHECK_CONSTRAINT_VALUES.measurement_tier) {
-      expect(sql).toContain(`'${tier}'`);
+      expect(measurementTierSql).toContain(`'${tier}'`);
     }
     for (const status of DB_CHECK_CONSTRAINT_VALUES.measurement_status) {
       expect(sql).toContain(`'${status}'`);

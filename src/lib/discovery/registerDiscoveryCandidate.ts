@@ -3,6 +3,10 @@ import {
   type DiscoveryFormatHint,
 } from "@/lib/discovery/discoveryMetadata";
 import { recordDiscovery } from "@/lib/discovery/repository";
+import {
+  autoEnrollDiscoveredChannel,
+  restoreArchiveChannelOnDiscovery,
+} from "@/lib/watchlist/autoWatchlist/autoWatchlistEnrollment";
 import { upsertSchedule } from "@/lib/measurement/scheduleRepository";
 import {
   findExistingVideoIds,
@@ -41,6 +45,8 @@ export interface RegisterDiscoveryCandidateDeps {
   recordDiscovery: typeof recordDiscovery;
   upsertSchedule: typeof upsertSchedule;
   findExistingVideoIds: typeof findExistingVideoIds;
+  autoEnrollChannel: typeof autoEnrollDiscoveredChannel;
+  restoreArchiveChannel: typeof restoreArchiveChannelOnDiscovery;
 }
 
 const defaultDeps: RegisterDiscoveryCandidateDeps = {
@@ -49,6 +55,8 @@ const defaultDeps: RegisterDiscoveryCandidateDeps = {
   recordDiscovery,
   upsertSchedule,
   findExistingVideoIds,
+  autoEnrollChannel: autoEnrollDiscoveredChannel,
+  restoreArchiveChannel: restoreArchiveChannelOnDiscovery,
 };
 
 export async function registerDiscoveryCandidate(
@@ -92,6 +100,29 @@ export async function registerDiscoveryCandidate(
   if (input.ensureSchedule !== false) {
     const scheduleResult = await deps.upsertSchedule(input.video.youtubeVideoId);
     scheduleCreated = scheduleResult.status === "created";
+  }
+
+  try {
+    await deps.autoEnrollChannel({
+      channelId: input.channel.youtubeChannelId,
+      channelName: input.channel.name,
+      sourceType: input.sourceType,
+      subscriberCount: input.channel.subscriberCount,
+      category: input.genreHint ?? null,
+    });
+    await deps.restoreArchiveChannel({
+      channelId: input.channel.youtubeChannelId,
+      sourceType: input.sourceType,
+      discoveryInserted: discoveryResult === "inserted",
+      discoveredAt,
+      lastUploadAt: input.video.publishedAt ?? null,
+    });
+  } catch (error) {
+    console.warn(
+      `[AutoWatchlist] post-discovery hook failed for ${input.channel.youtubeChannelId}: ${
+        error instanceof Error ? error.message : "unknown error"
+      }`,
+    );
   }
 
   return {

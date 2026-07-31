@@ -42,6 +42,8 @@ describe("runWatchlistDiscovery", () => {
         discoveryInserted: false,
         scheduleCreated: false,
       });
+    const markChecked = vi.fn().mockResolvedValue(undefined);
+    const touchLastUploadAt = vi.fn().mockResolvedValue(true);
     const finishRun = vi.fn().mockResolvedValue(undefined);
 
     const result = await runWatchlistDiscovery({
@@ -84,8 +86,9 @@ describe("runWatchlistDiscovery", () => {
       fetchChannels: vi.fn().mockResolvedValue(new Map()),
       upsertChannel: vi.fn().mockResolvedValue(undefined),
       registerDiscoveryCandidate,
-      markChecked: vi.fn().mockResolvedValue(undefined),
-      incrementFailure: vi.fn().mockResolvedValue(undefined),
+      markChecked,
+      markFailure: vi.fn().mockResolvedValue(1),
+      touchLastUploadAt,
       findRunningRun: vi.fn().mockResolvedValue(null),
       startRun: vi.fn().mockResolvedValue("run-1"),
       finishRun,
@@ -97,6 +100,14 @@ describe("runWatchlistDiscovery", () => {
     expect(result.discoveriesInserted).toBe(1);
     expect(result.discoveriesDuplicate).toBe(1);
     expect(registerDiscoveryCandidate).toHaveBeenCalledTimes(2);
+    expect(markChecked).toHaveBeenCalledWith(
+      "UC1234567890abcdefghij",
+      "normal",
+    );
+    expect(touchLastUploadAt).toHaveBeenCalledWith(
+      "UC1234567890abcdefghij",
+      "2026-07-24T00:00:00.000Z",
+    );
     expect(finishRun).toHaveBeenCalledWith(
       "run-1",
       expect.objectContaining({
@@ -106,6 +117,61 @@ describe("runWatchlistDiscovery", () => {
         youtubeQuotaEstimate: 3,
       }),
     );
+  });
+
+  it("records failures via markFailure without marking checked", async () => {
+    const markChecked = vi.fn();
+    const markFailure = vi.fn().mockResolvedValue(2);
+
+    const result = await runWatchlistDiscovery({
+      getDueChannels: vi
+        .fn()
+        .mockResolvedValue([makeWatchlistRow("UC1234567890abcdefghij")]),
+      acquireLock: vi
+        .fn()
+        .mockResolvedValue({ channelId: "UC1234567890abcdefghij", lockToken: "lock-1" }),
+      releaseLock: vi.fn().mockResolvedValue(undefined),
+      fetchUploadVideos: vi
+        .fn()
+        .mockRejectedValue(new Error("YouTube API unavailable")),
+      fetchChannels: vi.fn(),
+      upsertChannel: vi.fn(),
+      registerDiscoveryCandidate: vi.fn(),
+      markChecked,
+      markFailure,
+      touchLastUploadAt: vi.fn(),
+      findRunningRun: vi.fn().mockResolvedValue(null),
+      startRun: vi.fn().mockResolvedValue("run-3"),
+      finishRun: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.channelsFailed).toBe(1);
+    expect(markFailure).toHaveBeenCalledWith("UC1234567890abcdefghij");
+    expect(markChecked).not.toHaveBeenCalled();
+  });
+
+  it("only processes channels returned by getDueChannels", async () => {
+    const getDueChannels = vi.fn().mockResolvedValue([]);
+    const fetchUploadVideos = vi.fn();
+
+    await runWatchlistDiscovery({
+      getDueChannels,
+      acquireLock: vi.fn(),
+      releaseLock: vi.fn(),
+      fetchUploadVideos,
+      fetchChannels: vi.fn(),
+      upsertChannel: vi.fn(),
+      registerDiscoveryCandidate: vi.fn(),
+      markChecked: vi.fn(),
+      markFailure: vi.fn(),
+      touchLastUploadAt: vi.fn(),
+      findRunningRun: vi.fn().mockResolvedValue(null),
+      startRun: vi.fn().mockResolvedValue("run-4"),
+      finishRun: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(getDueChannels).toHaveBeenCalled();
+    expect(fetchUploadVideos).not.toHaveBeenCalled();
   });
 
   it("skips locked channels without failing the whole run", async () => {
@@ -122,7 +188,8 @@ describe("runWatchlistDiscovery", () => {
       upsertChannel: vi.fn(),
       registerDiscoveryCandidate: vi.fn(),
       markChecked: vi.fn(),
-      incrementFailure: vi.fn(),
+      markFailure: vi.fn(),
+      touchLastUploadAt: vi.fn(),
       findRunningRun: vi.fn().mockResolvedValue(null),
       startRun: vi.fn().mockResolvedValue("run-2"),
       finishRun,

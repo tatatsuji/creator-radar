@@ -90,7 +90,12 @@ describe("runMeasurement concurrent guard", () => {
       insertSnapshot: vi.fn().mockResolvedValue("inserted"),
       fillSubscriberCountIfNull: vi.fn().mockResolvedValue(false),
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
-      markSuccess: vi.fn().mockResolvedValue(undefined),
+      markSuccess: vi.fn().mockResolvedValue({
+        previousTier: "hot",
+        nextTier: "normal",
+        reason: "default_normal",
+        tierChanged: false,
+      }),
       markFailure: vi.fn(),
       incrementFailure: vi.fn(),
       findRunningRun: vi.fn().mockResolvedValue(null),

@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
-import { runMeasurement } from "../src/lib/measurement/runMeasurement";
+import { runMeasurementCron } from "../src/lib/measurement/runMeasurementCron";
 
 async function main(): Promise<void> {
-  const result = await runMeasurement();
+  const result = await runMeasurementCron();
   console.log(JSON.stringify(result, null, 2));
-  if (result.status === "failed") {
+  if (result.quotaStatus === "deferred") {
+    process.exit(0);
+  }
+  if (result.measurement?.status === "failed") {
     process.exit(1);
   }
 }

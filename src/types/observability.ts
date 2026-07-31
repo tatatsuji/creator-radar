@@ -72,7 +72,16 @@ export const DISCOVERY_RUN_TYPES = [
 ] as const;
 export type DiscoveryRunType = (typeof DISCOVERY_RUN_TYPES)[number];
 
-export const MEASUREMENT_TIERS = ["hot", "active", "normal", "cold"] as const;
+export const MEASUREMENT_TIERS = [
+  "critical",
+  "high",
+  "normal",
+  "low",
+  "archive",
+  "hot",
+  "active",
+  "cold",
+] as const;
 export type MeasurementTier = (typeof MEASUREMENT_TIERS)[number];
 
 export const MEASUREMENT_STATUSES = [

@@ -1,3 +1,4 @@
+import { touchChannelLastUploadAtIfNewer } from "@/lib/channels/channelUploadStatsRepository";
 import { buildWatchlistUploadSourceKey } from "@/lib/discovery/sourceKey";
 import {
   buildChannelUpsertFromYouTube,
@@ -21,12 +22,13 @@ import type { GenreId } from "@/types";
 import {
   acquireWatchlistLock,
   getDueWatchlistChannels,
-  incrementWatchlistFailureCount,
   markWatchlistChecked,
+  markWatchlistFailure,
   releaseWatchlistLock,
   type WatchlistLockHandle,
 } from "@/lib/watchlist/repository";
 import type { ChannelWatchlistRow } from "@/types/database";
+import { isWatchTier } from "@/types/observability";
 
 export interface WatchlistDiscoveryResult {
   runId: string;
@@ -50,7 +52,8 @@ export interface WatchlistDiscoveryDeps {
   upsertChannel: typeof upsertChannelRecord;
   registerDiscoveryCandidate: typeof registerDiscoveryCandidate;
   markChecked: typeof markWatchlistChecked;
-  incrementFailure: typeof incrementWatchlistFailureCount;
+  markFailure: typeof markWatchlistFailure;
+  touchLastUploadAt: typeof touchChannelLastUploadAtIfNewer;
   findRunningRun: typeof findRecentRunningDiscoveryRun;
   startRun: typeof startDiscoveryRun;
   finishRun: typeof finishDiscoveryRun;
@@ -65,7 +68,8 @@ const defaultDeps: WatchlistDiscoveryDeps = {
   upsertChannel: upsertChannelRecord,
   registerDiscoveryCandidate,
   markChecked: markWatchlistChecked,
-  incrementFailure: incrementWatchlistFailureCount,
+  markFailure: markWatchlistFailure,
+  touchLastUploadAt: touchChannelLastUploadAtIfNewer,
   findRunningRun: findRecentRunningDiscoveryRun,
   startRun: startDiscoveryRun,
   finishRun: finishDiscoveryRun,
@@ -116,6 +120,15 @@ async function processWatchlistChannel(
     let discoveriesInserted = 0;
     let discoveriesDuplicate = 0;
 
+    if (items.length > 0) {
+      const latestPublishedAt = items.reduce((latest, item) => {
+        const publishedAt = item.snippet.publishedAt;
+        return publishedAt > latest ? publishedAt : latest;
+      }, items[0]!.snippet.publishedAt);
+
+      await deps.touchLastUploadAt(channel.channel_id, latestPublishedAt);
+    }
+
     for (const item of items) {
       const registration = await deps.registerDiscoveryCandidate({
         video: buildVideoUpsertFromYouTubeItem({
@@ -146,7 +159,12 @@ async function processWatchlistChannel(
       }
     }
 
-    await deps.markChecked(channel.channel_id);
+    await deps.markChecked(
+      channel.channel_id,
+      isWatchTier(channel.watch_tier)
+        ? channel.watch_tier
+        : OBSERVABILITY_CONFIG.defaults.watchTier,
+    );
 
     return {
       videosDiscovered: items.length,
@@ -155,7 +173,7 @@ async function processWatchlistChannel(
       quotaUsed,
     };
   } catch (error) {
-    await deps.incrementFailure(channel.channel_id);
+    await deps.markFailure(channel.channel_id);
     return {
       videosDiscovered: 0,
       discoveriesInserted: 0,

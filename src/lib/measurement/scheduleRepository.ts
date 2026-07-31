@@ -6,6 +6,12 @@ import {
   computeNextMeasurementAtAfterSuccess,
   shouldMarkMeasurementFailed,
 } from "@/lib/observability/measurementScheduling";
+import { logAdaptiveMeasurementTierChange } from "@/lib/measurement/adaptiveMeasurementLogger";
+import {
+  resolveAdaptiveMeasurementTier,
+  resolveInitialAdaptiveMeasurementTier,
+} from "@/lib/measurement/adaptiveMeasurementSignals";
+import type { AdaptiveMeasurementTier } from "@/lib/measurement/adaptiveMeasurementConfig";
 import {
   createSupabaseServerClient,
   isSupabaseConfigured,
@@ -93,9 +99,11 @@ export async function upsertSchedule(videoId: string): Promise<UpsertScheduleRes
     return { videoId, status: "exists" };
   }
 
+  const initialTierDecision = await resolveInitialAdaptiveMeasurementTier(videoId);
+
   const { error } = await supabase.from("measurement_schedule").insert({
     video_id: videoId,
-    measurement_tier: "hot",
+    measurement_tier: initialTierDecision.tier,
     measurement_status: "pending",
     next_measurement_at: now,
     failure_count: 0,
@@ -275,6 +283,7 @@ export async function markMeasurementSuccess(
   const { error } = await supabase
     .from("measurement_schedule")
     .update({
+      measurement_tier: tier,
       measurement_status: "active",
       last_measured_at: measuredAt.toISOString(),
       next_measurement_at: nextMeasurementAt.toISOString(),
@@ -288,6 +297,50 @@ export async function markMeasurementSuccess(
   if (error) {
     throw new Error(`measurement_schedule success update failed: ${error.message}`);
   }
+}
+
+export interface MarkMeasurementAdaptiveSuccessResult {
+  previousTier: string;
+  nextTier: AdaptiveMeasurementTier;
+  reason: string;
+  tierChanged: boolean;
+}
+
+export async function markMeasurementAdaptiveSuccess(
+  videoId: string,
+  currentTier: MeasurementTier | string,
+  currentViewCount: number,
+  lastMeasuredAt: string | null,
+  measuredAt: Date,
+): Promise<MarkMeasurementAdaptiveSuccessResult> {
+  assertSupabaseConfigured();
+
+  const decision = await resolveAdaptiveMeasurementTier(
+    videoId,
+    currentTier,
+    currentViewCount,
+    lastMeasuredAt,
+    measuredAt,
+  );
+
+  const tierChanged = decision.normalizedPreviousTier !== decision.tier;
+  if (tierChanged || currentTier !== decision.tier) {
+    logAdaptiveMeasurementTierChange({
+      videoId,
+      previousTier: currentTier,
+      nextTier: decision.tier,
+      reason: decision.reason,
+    });
+  }
+
+  await markMeasurementSuccess(videoId, decision.tier as MeasurementTier, measuredAt);
+
+  return {
+    previousTier: currentTier,
+    nextTier: decision.tier,
+    reason: decision.reason,
+    tierChanged,
+  };
 }
 
 /**

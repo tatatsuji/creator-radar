@@ -7,6 +7,13 @@ vi.mock("@/lib/supabase/server", () => ({
   isSupabaseConfigured: () => true,
 }));
 
+const adaptiveMarkSuccessResult = {
+  previousTier: "hot",
+  nextTier: "normal" as const,
+  reason: "default_normal",
+  tierChanged: true,
+};
+
 function makeSchedule(videoId: string): MeasurementScheduleRow {
   return {
     video_id: videoId,
@@ -34,7 +41,7 @@ describe("runMeasurement", () => {
   it("stores snapshots and updates schedules on success", async () => {
     const insertSnapshot = vi.fn().mockResolvedValue("inserted");
     const updateLastObservedAt = vi.fn().mockResolvedValue(undefined);
-    const markSuccess = vi.fn().mockResolvedValue(undefined);
+    const markSuccess = vi.fn().mockResolvedValue(adaptiveMarkSuccessResult);
     const releaseLock = vi.fn().mockResolvedValue(undefined);
     const finishRun = vi.fn().mockResolvedValue(undefined);
 
@@ -83,8 +90,12 @@ describe("runMeasurement", () => {
     expect(markSuccess).toHaveBeenCalledWith(
       "video-1",
       "hot",
+      100,
+      null,
       expect.any(Date),
     );
+    expect(result.adaptiveQuota.tierChanges).toBe(1);
+    expect(result.adaptiveQuota.savedDailyCalls).toBeGreaterThanOrEqual(0);
     expect(finishRun).toHaveBeenCalledWith(
       "run-1",
       expect.objectContaining({
@@ -183,7 +194,7 @@ describe("runMeasurement", () => {
       insertSnapshot,
       fillSubscriberCountIfNull: vi.fn().mockResolvedValue(false),
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
-      markSuccess: vi.fn().mockResolvedValue(undefined),
+      markSuccess: vi.fn().mockResolvedValue(adaptiveMarkSuccessResult),
       markFailure: vi.fn(),
       incrementFailure: vi.fn(),
       findRunningRun: vi.fn().mockResolvedValue(null),

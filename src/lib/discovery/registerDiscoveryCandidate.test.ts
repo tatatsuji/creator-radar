@@ -44,6 +44,8 @@ describe("registerDiscoveryCandidate", () => {
         recordDiscovery,
         upsertSchedule,
         findExistingVideoIds: vi.fn().mockResolvedValue(new Set()),
+        autoEnrollChannel: vi.fn().mockResolvedValue("skipped"),
+        restoreArchiveChannel: vi.fn().mockResolvedValue(false),
       },
     );
 
@@ -77,6 +79,8 @@ describe("registerDiscoveryCandidate", () => {
         .fn()
         .mockResolvedValueOnce(new Set())
         .mockResolvedValueOnce(new Set(["video1234567"])),
+      autoEnrollChannel: vi.fn().mockResolvedValue("skipped"),
+      restoreArchiveChannel: vi.fn().mockResolvedValue(false),
     };
 
     const baseInput = {
@@ -117,5 +121,50 @@ describe("registerDiscoveryCandidate", () => {
     expect(recordDiscovery).toHaveBeenCalledTimes(2);
     expect(recordDiscovery.mock.calls[0]?.[0]?.sourceType).toBe("search");
     expect(recordDiscovery.mock.calls[1]?.[0]?.sourceType).toBe("most_popular");
+  });
+
+  it("invokes auto watchlist hooks after discovery registration", async () => {
+    const autoEnrollChannel = vi.fn().mockResolvedValue("enrolled");
+    const restoreArchiveChannel = vi.fn().mockResolvedValue(false);
+
+    await registerDiscoveryCandidate(
+      {
+        video: {
+          youtubeVideoId: "video1234567",
+          title: "Sample",
+          channelId: "UC1234567890abcdefghij",
+          channelName: "Channel",
+          thumbnailUrl: "https://example.com/thumb.jpg",
+          publishedAt: new Date().toISOString(),
+          lastSeenAt: new Date().toISOString(),
+        },
+        channel: {
+          youtubeChannelId: "UC1234567890abcdefghij",
+          name: "Channel",
+          subscriberCountHidden: false,
+        },
+        sourceType: "search",
+        sourceKey: "q:ranking:24h:all",
+      },
+      {
+        upsertChannel: vi.fn().mockResolvedValue(undefined),
+        upsertVideo: vi.fn().mockResolvedValue(undefined),
+        recordDiscovery: vi.fn().mockResolvedValue("inserted"),
+        upsertSchedule: vi
+          .fn()
+          .mockResolvedValue({ videoId: "video1234567", status: "created" }),
+        findExistingVideoIds: vi.fn().mockResolvedValue(new Set()),
+        autoEnrollChannel,
+        restoreArchiveChannel,
+      },
+    );
+
+    expect(autoEnrollChannel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: "UC1234567890abcdefghij",
+        sourceType: "search",
+      }),
+    );
+    expect(restoreArchiveChannel).toHaveBeenCalled();
   });
 });

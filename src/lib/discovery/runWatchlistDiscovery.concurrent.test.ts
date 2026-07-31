@@ -18,7 +18,8 @@ describe("runWatchlistDiscovery concurrent guard", () => {
         upsertChannel: vi.fn(),
         registerDiscoveryCandidate: vi.fn(),
         markChecked: vi.fn(),
-        incrementFailure: vi.fn(),
+        markFailure: vi.fn(),
+        touchLastUploadAt: vi.fn(),
         findRunningRun: vi.fn().mockResolvedValue({
           id: "running-discovery",
           status: "running",

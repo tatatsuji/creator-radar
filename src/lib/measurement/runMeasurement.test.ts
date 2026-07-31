@@ -27,6 +27,7 @@ const availabilityMocks = {
   persistAvailabilityActive: vi.fn().mockResolvedValue(undefined),
   persistAvailabilityMissing: vi.fn().mockResolvedValue(undefined),
   stopMeasurementForUnavailable: vi.fn().mockResolvedValue(undefined),
+  markVideoItemMissing: vi.fn().mockResolvedValue(undefined),
 };
 
 describe("runMeasurement", () => {
@@ -93,8 +94,9 @@ describe("runMeasurement", () => {
     );
   });
 
-  it("handles not_found without updating last_observed_at", async () => {
+  it("handles video_item_missing without updating last_observed_at", async () => {
     const updateLastObservedAt = vi.fn();
+    const markVideoItemMissing = vi.fn().mockResolvedValue(undefined);
     const markFailure = vi.fn().mockResolvedValue(undefined);
 
     const result = await runMeasurement({
@@ -124,18 +126,18 @@ describe("runMeasurement", () => {
       createRun: vi.fn().mockResolvedValue("run-2"),
       finishRun: vi.fn().mockResolvedValue(undefined),
       ...availabilityMocks,
+      markVideoItemMissing,
     });
 
     expect(result.notFound).toBe(1);
     expect(result.videosFailed).toBe(1);
     expect(updateLastObservedAt).not.toHaveBeenCalled();
-    expect(markFailure).toHaveBeenCalledWith(
+    expect(markVideoItemMissing).toHaveBeenCalledWith(
       "missing-video",
-      expect.objectContaining({
-        failureCount: 1,
-        reason: "not_found",
-      }),
+      "hot",
+      expect.any(Date),
     );
+    expect(markFailure).not.toHaveBeenCalled();
   });
 
   it("prevents duplicate snapshots within the same run", async () => {

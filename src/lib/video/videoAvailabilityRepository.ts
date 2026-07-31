@@ -20,6 +20,23 @@ const DEFAULT_AVAILABILITY_STATE: VideoAvailabilityState = {
 };
 
 let availabilityColumnsAvailable: boolean | null = null;
+let availabilityMigrationWarningLogged = false;
+
+function warnAvailabilityTrackingDisabledOnce(): void {
+  if (availabilityMigrationWarningLogged) {
+    return;
+  }
+
+  availabilityMigrationWarningLogged = true;
+  console.warn(
+    "[CreatorRadar] Video availability tracking is disabled because migration 009_video_availability.sql is not applied. Existing measurement continues unchanged.",
+  );
+}
+
+function markAvailabilityColumnsMissing(): void {
+  availabilityColumnsAvailable = false;
+  warnAvailabilityTrackingDisabledOnce();
+}
 
 function isMissingAvailabilityColumnError(error: {
   code?: string;
@@ -73,7 +90,7 @@ export async function isVideoAvailabilityTrackingEnabled(): Promise<boolean> {
     .limit(1);
 
   if (error && isMissingAvailabilityColumnError(error)) {
-    availabilityColumnsAvailable = false;
+    markAvailabilityColumnsMissing();
     return false;
   }
 
@@ -111,7 +128,7 @@ export async function fetchVideoAvailabilityStates(
 
     if (error) {
       if (isMissingAvailabilityColumnError(error)) {
-        availabilityColumnsAvailable = false;
+        markAvailabilityColumnsMissing();
         return states;
       }
       throw new Error(`videos availability lookup failed: ${error.message}`);
@@ -155,7 +172,7 @@ export async function listDeletedOrPrivateVideoIds(
 
     if (error) {
       if (isMissingAvailabilityColumnError(error)) {
-        availabilityColumnsAvailable = false;
+        markAvailabilityColumnsMissing();
         return deleted;
       }
       throw new Error(
@@ -228,4 +245,9 @@ export async function persistVideoAvailabilityMissing(
 /** Resets probe cache — for tests only. */
 export function resetVideoAvailabilityTrackingProbeForTests(): void {
   availabilityColumnsAvailable = null;
+  availabilityMigrationWarningLogged = false;
+}
+
+export function wasAvailabilityMigrationWarningLogged(): boolean {
+  return availabilityMigrationWarningLogged;
 }

@@ -22,9 +22,4 @@ export const VIDEO_AVAILABILITY_CONFIG = {
     process.env.VIDEO_AVAILABILITY_CONFIRM_MIN_HOURS,
     6,
   ),
-  /** Backoff between retries while unavailable_pending. */
-  retryBackoffMs: readPositiveInt(
-    process.env.VIDEO_AVAILABILITY_RETRY_BACKOFF_MINUTES,
-    15,
-  ) * 60 * 1000,
 } as const;

@@ -48,6 +48,7 @@ describe("runMeasurement concurrent guard", () => {
         persistAvailabilityActive: vi.fn(),
         persistAvailabilityMissing: vi.fn(),
         stopMeasurementForUnavailable: vi.fn(),
+        markVideoItemMissing: vi.fn(),
       }),
     ).rejects.toThrow("Measurement is already in progress.");
   });
@@ -99,6 +100,7 @@ describe("runMeasurement concurrent guard", () => {
       persistAvailabilityActive: vi.fn().mockResolvedValue(undefined),
       persistAvailabilityMissing: vi.fn().mockResolvedValue(undefined),
       stopMeasurementForUnavailable: vi.fn().mockResolvedValue(undefined),
+      markVideoItemMissing: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.videosLocked).toBe(1);

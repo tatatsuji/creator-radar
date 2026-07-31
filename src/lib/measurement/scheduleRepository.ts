@@ -290,11 +290,46 @@ export async function markMeasurementSuccess(
   }
 }
 
+/**
+ * Reschedule after a successful batch where this video ID was missing.
+ * Does not touch failure_count — availability state owns video_item_missing.
+ */
+export async function markMeasurementVideoItemMissing(
+  videoId: string,
+  tier: MeasurementTier,
+  measuredAt: Date,
+): Promise<void> {
+  if (!isMeasurementTier(tier)) {
+    throw new Error(`Invalid measurement tier: ${tier}`);
+  }
+
+  assertSupabaseConfigured();
+
+  const supabase = createSupabaseServerClient();
+  const nextMeasurementAt = computeNextMeasurementAtAfterSuccess(tier, measuredAt);
+
+  const { error } = await supabase
+    .from("measurement_schedule")
+    .update({
+      next_measurement_at: nextMeasurementAt.toISOString(),
+      lock_token: null,
+      locked_until: null,
+      updated_at: nowIso(),
+    })
+    .eq("video_id", videoId);
+
+  if (error) {
+    throw new Error(
+      `measurement_schedule video_item_missing update failed: ${error.message}`,
+    );
+  }
+}
+
 export async function markMeasurementFailure(
   videoId: string,
   options: {
     failureCount: number;
-    reason: "not_found" | "api_error";
+    reason: "api_error";
     measuredAt?: Date;
   },
 ): Promise<void> {

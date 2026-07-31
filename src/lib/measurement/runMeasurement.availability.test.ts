@@ -52,6 +52,7 @@ function availabilityDeps(
         states.set(videoId, next);
       }),
     stopMeasurementForUnavailable: vi.fn().mockResolvedValue(undefined),
+    markVideoItemMissing: vi.fn().mockResolvedValue(undefined),
     fetchChannelIdsForVideos: vi.fn().mockResolvedValue(new Map()),
     fetchChannelSubscriberCounts: vi.fn().mockResolvedValue({
       subscriberCounts: new Map(),
@@ -63,6 +64,7 @@ function availabilityDeps(
     createRun: vi.fn().mockResolvedValue("run-availability"),
     finishRun: vi.fn().mockResolvedValue(undefined),
     releaseLock: vi.fn().mockResolvedValue(undefined),
+    markFailure: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -100,7 +102,6 @@ describe("runMeasurement availability", () => {
       insertSnapshot,
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
       markSuccess,
-      markFailure: vi.fn(),
     });
 
     expect(result.videosSucceeded).toBe(2);
@@ -115,10 +116,10 @@ describe("runMeasurement availability", () => {
       ["video-a", activeState()],
       ["video-b", activeState()],
     ]);
-    const markFailure = vi.fn().mockResolvedValue(undefined);
+    const markVideoItemMissing = vi.fn().mockResolvedValue(undefined);
 
     await runMeasurement({
-      ...availabilityDeps(states),
+      ...availabilityDeps(states, { markVideoItemMissing }),
       getDueVideos: vi
         .fn()
         .mockResolvedValue([makeSchedule("video-a"), makeSchedule("video-b")]),
@@ -139,15 +140,15 @@ describe("runMeasurement availability", () => {
       insertSnapshot: vi.fn().mockResolvedValue("inserted"),
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
       markSuccess: vi.fn().mockResolvedValue(undefined),
-      markFailure,
     });
 
     expect(states.get("video-a")?.availabilityStatus).toBe("active");
     expect(states.get("video-b")?.availabilityStatus).toBe("unavailable_pending");
     expect(states.get("video-b")?.unavailableCount).toBe(1);
-    expect(markFailure).toHaveBeenCalledWith(
+    expect(markVideoItemMissing).toHaveBeenCalledWith(
       "video-b",
-      expect.objectContaining({ reason: "not_found" }),
+      "hot",
+      expect.any(Date),
     );
   });
 
@@ -170,29 +171,59 @@ describe("runMeasurement availability", () => {
       insertSnapshot: vi.fn(),
       updateLastObservedAt: vi.fn(),
       markSuccess: vi.fn(),
-      markFailure: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(states.get("missing")?.availabilityStatus).toBe("unavailable_pending");
     expect(stopMeasurementForUnavailable).not.toHaveBeenCalled();
   });
 
-  it("confirms deleted_or_private and stops measurement after threshold and elapsed time", async () => {
+  it("does not stop measurement after three quick misses within six hours", async () => {
+    const recentFirstUnavailable = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     const states = new Map([
       [
         "missing",
         {
           availabilityStatus: "unavailable_pending" as const,
           unavailableCount: 2,
-          firstUnavailableAt: "2026-07-24T00:00:00.000Z",
-          lastUnavailableAt: "2026-07-24T06:00:00.000Z",
+          firstUnavailableAt: recentFirstUnavailable,
+          lastUnavailableAt: recentFirstUnavailable,
         },
       ],
     ]);
     const stopMeasurementForUnavailable = vi.fn().mockResolvedValue(undefined);
+    const markFailure = vi.fn().mockResolvedValue(undefined);
 
     await runMeasurement({
-      ...availabilityDeps(states, { stopMeasurementForUnavailable }),
+      ...availabilityDeps(states, { stopMeasurementForUnavailable, markFailure }),
+      getDueVideos: vi.fn().mockResolvedValue([
+        makeSchedule("missing", { failure_count: 0, measurement_status: "pending" }),
+      ]),
+      acquireLocks: vi.fn().mockResolvedValue({
+        locked: [{ videoId: "missing", lockToken: "lock-1" }],
+        skipped: [],
+      }),
+      fetchStatistics: vi.fn().mockResolvedValue({
+        statistics: [],
+        missingVideoIds: ["missing"],
+        quotaUsed: 1,
+      }),
+      insertSnapshot: vi.fn(),
+      updateLastObservedAt: vi.fn(),
+      markSuccess: vi.fn(),
+    });
+
+    expect(states.get("missing")?.availabilityStatus).toBe("unavailable_pending");
+    expect(states.get("missing")?.unavailableCount).toBe(3);
+    expect(stopMeasurementForUnavailable).not.toHaveBeenCalled();
+    expect(markFailure).not.toHaveBeenCalled();
+  });
+
+  it("keeps unavailable_pending videos scheduled for recheck via markVideoItemMissing", async () => {
+    const states = new Map([["missing", activeState()]]);
+    const markVideoItemMissing = vi.fn().mockResolvedValue(undefined);
+
+    await runMeasurement({
+      ...availabilityDeps(states, { markVideoItemMissing }),
       getDueVideos: vi.fn().mockResolvedValue([makeSchedule("missing")]),
       acquireLocks: vi.fn().mockResolvedValue({
         locked: [{ videoId: "missing", lockToken: "lock-1" }],
@@ -206,11 +237,55 @@ describe("runMeasurement availability", () => {
       insertSnapshot: vi.fn(),
       updateLastObservedAt: vi.fn(),
       markSuccess: vi.fn(),
-      markFailure: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(markVideoItemMissing).toHaveBeenCalledWith(
+      "missing",
+      "hot",
+      expect.any(Date),
+    );
+    expect(states.get("missing")?.availabilityStatus).toBe("unavailable_pending");
+  });
+
+  it("confirms deleted_or_private and stops measurement only after threshold and elapsed time", async () => {
+    const states = new Map([
+      [
+        "missing",
+        {
+          availabilityStatus: "unavailable_pending" as const,
+          unavailableCount: 2,
+          firstUnavailableAt: "2026-07-24T00:00:00.000Z",
+          lastUnavailableAt: "2026-07-24T06:00:00.000Z",
+        },
+      ],
+    ]);
+    const stopMeasurementForUnavailable = vi.fn().mockResolvedValue(undefined);
+    const markVideoItemMissing = vi.fn().mockResolvedValue(undefined);
+
+    await runMeasurement({
+      ...availabilityDeps(states, {
+        stopMeasurementForUnavailable,
+        markVideoItemMissing,
+      }),
+      getDueVideos: vi.fn().mockResolvedValue([makeSchedule("missing")]),
+      acquireLocks: vi.fn().mockResolvedValue({
+        locked: [{ videoId: "missing", lockToken: "lock-1" }],
+        skipped: [],
+      }),
+      fetchStatistics: vi.fn().mockResolvedValue({
+        statistics: [],
+        missingVideoIds: ["missing"],
+        quotaUsed: 1,
+      }),
+      insertSnapshot: vi.fn(),
+      updateLastObservedAt: vi.fn(),
+      markSuccess: vi.fn(),
     });
 
     expect(states.get("missing")?.availabilityStatus).toBe("deleted_or_private");
+    expect(stopMeasurementForUnavailable).toHaveBeenCalledTimes(1);
     expect(stopMeasurementForUnavailable).toHaveBeenCalledWith("missing");
+    expect(markVideoItemMissing).toHaveBeenCalledTimes(1);
   });
 
   it("recovers unavailable_pending videos to active when fetched again", async () => {
@@ -243,7 +318,6 @@ describe("runMeasurement availability", () => {
       insertSnapshot: vi.fn().mockResolvedValue("inserted"),
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
       markSuccess: vi.fn().mockResolvedValue(undefined),
-      markFailure: vi.fn(),
     });
 
     expect(result.availability.recoveredToActive).toBe(1);
@@ -276,7 +350,6 @@ describe("runMeasurement availability", () => {
       insertSnapshot: vi.fn(),
       updateLastObservedAt: vi.fn(),
       markSuccess: vi.fn(),
-      markFailure: vi.fn(),
     });
 
     expect(result.availability.apiErrorCount).toBe(2);
@@ -304,7 +377,6 @@ describe("runMeasurement availability", () => {
         insertSnapshot: vi.fn(),
         updateLastObservedAt: vi.fn(),
         markSuccess: vi.fn(),
-        markFailure: vi.fn(),
       });
 
       expect(persistAvailabilityMissing).not.toHaveBeenCalled();
@@ -340,7 +412,6 @@ describe("runMeasurement availability", () => {
       insertSnapshot,
       updateLastObservedAt: vi.fn().mockResolvedValue(undefined),
       markSuccess: vi.fn().mockResolvedValue(undefined),
-      markFailure: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(insertSnapshot).toHaveBeenCalledTimes(1);

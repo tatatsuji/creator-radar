@@ -6,6 +6,7 @@ import {
   markMeasurementFailure,
   markMeasurementStoppedForUnavailable,
   markMeasurementSuccess,
+  markMeasurementVideoItemMissing,
   releaseMeasurementLock,
   type MeasurementLockHandle,
 } from "@/lib/measurement/scheduleRepository";
@@ -69,6 +70,7 @@ export interface MeasurementDeps {
   updateLastObservedAt: typeof updateVideoLastObservedAt;
   markSuccess: typeof markMeasurementSuccess;
   markFailure: typeof markMeasurementFailure;
+  markVideoItemMissing: typeof markMeasurementVideoItemMissing;
   incrementFailure: typeof incrementFailureCount;
   findRunningRun: typeof findRecentRunningMeasurementRun;
   createRun: typeof createMeasurementSnapshotRun;
@@ -91,6 +93,7 @@ const defaultDeps: MeasurementDeps = {
   updateLastObservedAt: updateVideoLastObservedAt,
   markSuccess: markMeasurementSuccess,
   markFailure: markMeasurementFailure,
+  markVideoItemMissing: markMeasurementVideoItemMissing,
   incrementFailure: incrementFailureCount,
   findRunningRun: findRecentRunningMeasurementRun,
   createRun: createMeasurementSnapshotRun,
@@ -110,8 +113,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 async function processNotFoundVideo(
-  videoId: string,
-  currentFailureCount: number,
+  schedule: MeasurementScheduleRow,
   measuredAt: Date,
   deps: MeasurementDeps,
   errors: MeasurementRunResult["errors"],
@@ -119,30 +121,29 @@ async function processNotFoundVideo(
   availabilitySummary: VideoAvailabilityBatchSummary,
   nowIso: string,
 ): Promise<void> {
-  const nextFailureCount = currentFailureCount + 1;
-  await deps.markFailure(videoId, {
-    failureCount: nextFailureCount,
-    reason: "not_found",
-    measuredAt,
-  });
-  errors.push({ videoId, reason: "not_found" });
+  const tier = isMeasurementTier(schedule.measurement_tier)
+    ? schedule.measurement_tier
+    : ("hot" satisfies MeasurementTier);
 
-  const currentState = availabilityStates.get(videoId) ?? {
+  await deps.markVideoItemMissing(schedule.video_id, tier, measuredAt);
+  errors.push({ videoId: schedule.video_id, reason: "video_item_missing" });
+
+  const currentState = availabilityStates.get(schedule.video_id) ?? {
     availabilityStatus: "active" as const,
     unavailableCount: 0,
     firstUnavailableAt: null,
     lastUnavailableAt: null,
   };
   const transition = applyAvailabilityOnMissing(currentState, nowIso);
-  availabilityStates.set(videoId, transition.next);
-  await deps.persistAvailabilityMissing(videoId, transition.next, nowIso);
+  availabilityStates.set(schedule.video_id, transition.next);
+  await deps.persistAvailabilityMissing(schedule.video_id, transition.next, nowIso);
 
   if (transition.movedToPending) {
     availabilitySummary.movedToPending += 1;
   }
   if (transition.movedToDeletedOrPrivate) {
     availabilitySummary.movedToDeletedOrPrivate += 1;
-    await deps.stopMeasurementForUnavailable(videoId);
+    await deps.stopMeasurementForUnavailable(schedule.video_id);
   }
 }
 
@@ -308,8 +309,7 @@ export async function runMeasurement(
           notFound += 1;
           videosFailed += 1;
           await processNotFoundVideo(
-            videoId,
-            schedule.failure_count,
+            schedule,
             startedAt,
             deps,
             errors,

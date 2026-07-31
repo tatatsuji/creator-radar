@@ -326,6 +326,71 @@ export async function findExistingVideoIds(
   return existing;
 }
 
+function isMissingDiscoveryStatsColumnError(error: {
+  code?: string;
+  message?: string;
+}): boolean {
+  return (
+    error.code === "42703" ||
+    error.message?.includes("last_discovered_at") === true ||
+    error.message?.includes("discovery_count") === true
+  );
+}
+
+export async function touchVideoDiscoveryStats(
+  videoId: string,
+  discoveredAt: string,
+  options: { incrementCount: boolean },
+): Promise<void> {
+  const supabase = createSupabaseServerClient();
+
+  if (options.incrementCount) {
+    const { data: existing, error: readError } = await supabase
+      .from("videos")
+      .select("discovery_count")
+      .eq("youtube_video_id", videoId)
+      .maybeSingle();
+
+    if (readError && !isMissingDiscoveryStatsColumnError(readError)) {
+      throw new Error(
+        `videos discovery stats read failed: ${readError.message}`,
+      );
+    }
+
+    if (readError && isMissingDiscoveryStatsColumnError(readError)) {
+      return;
+    }
+
+    const nextCount = (existing?.discovery_count ?? 0) + 1;
+    const { error } = await supabase
+      .from("videos")
+      .update({
+        last_discovered_at: discoveredAt,
+        discovery_count: nextCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("youtube_video_id", videoId);
+
+    if (error && !isMissingDiscoveryStatsColumnError(error)) {
+      throw new Error(`videos discovery stats update failed: ${error.message}`);
+    }
+
+    return;
+  }
+
+  const { error } = await supabase
+    .from("videos")
+    .update({
+      last_discovered_at: discoveredAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("youtube_video_id", videoId);
+
+  if (error && !isMissingDiscoveryStatsColumnError(error)) {
+    throw new Error(`videos last_discovered_at update failed: ${error.message}`);
+  }
+}
+
 export async function upsertVideoRecord(input: UpsertVideoInput): Promise<void> {
   const supabase = createSupabaseServerClient();
   const now = new Date().toISOString();

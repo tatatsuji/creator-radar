@@ -30,12 +30,18 @@ function makeWatchlistRow(channelId: string): ChannelWatchlistRow {
 
 describe("runWatchlistDiscovery", () => {
   it("stores discoveries and finishes a discovery run", async () => {
-    const upsertVideo = vi.fn().mockResolvedValue(undefined);
-    const recordDiscovery = vi
+    const registerDiscoveryCandidate = vi
       .fn()
-      .mockResolvedValueOnce("inserted")
-      .mockResolvedValueOnce("duplicate");
-    const upsertSchedule = vi.fn().mockResolvedValue({ videoId: "video123456", status: "created" });
+      .mockResolvedValueOnce({
+        videoInserted: true,
+        discoveryInserted: true,
+        scheduleCreated: true,
+      })
+      .mockResolvedValueOnce({
+        videoInserted: false,
+        discoveryInserted: false,
+        scheduleCreated: false,
+      });
     const finishRun = vi.fn().mockResolvedValue(undefined);
 
     const result = await runWatchlistDiscovery({
@@ -77,9 +83,7 @@ describe("runWatchlistDiscovery", () => {
       }),
       fetchChannels: vi.fn().mockResolvedValue(new Map()),
       upsertChannel: vi.fn().mockResolvedValue(undefined),
-      upsertVideo,
-      recordDiscovery,
-      upsertSchedule,
+      registerDiscoveryCandidate,
       markChecked: vi.fn().mockResolvedValue(undefined),
       incrementFailure: vi.fn().mockResolvedValue(undefined),
       findRunningRun: vi.fn().mockResolvedValue(null),
@@ -92,9 +96,7 @@ describe("runWatchlistDiscovery", () => {
     expect(result.videosDiscovered).toBe(2);
     expect(result.discoveriesInserted).toBe(1);
     expect(result.discoveriesDuplicate).toBe(1);
-    expect(upsertVideo).toHaveBeenCalledTimes(2);
-    expect(recordDiscovery).toHaveBeenCalledTimes(2);
-    expect(upsertSchedule).toHaveBeenCalledTimes(2);
+    expect(registerDiscoveryCandidate).toHaveBeenCalledTimes(2);
     expect(finishRun).toHaveBeenCalledWith(
       "run-1",
       expect.objectContaining({
@@ -118,9 +120,7 @@ describe("runWatchlistDiscovery", () => {
       fetchUploadVideos: vi.fn(),
       fetchChannels: vi.fn(),
       upsertChannel: vi.fn(),
-      upsertVideo: vi.fn(),
-      recordDiscovery: vi.fn(),
-      upsertSchedule: vi.fn(),
+      registerDiscoveryCandidate: vi.fn(),
       markChecked: vi.fn(),
       incrementFailure: vi.fn(),
       findRunningRun: vi.fn().mockResolvedValue(null),

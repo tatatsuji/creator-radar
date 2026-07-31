@@ -7,20 +7,17 @@ import {
   fetchDiscoveredUploadVideos,
   YOUTUBE_UPLOADS_QUOTA,
 } from "@/lib/discovery/youtubeUploads";
-import { recordDiscovery } from "@/lib/discovery/repository";
+import { registerDiscoveryCandidate } from "@/lib/discovery/registerDiscoveryCandidate";
 import {
   finishDiscoveryRun,
   findRecentRunningDiscoveryRun,
   startDiscoveryRun,
 } from "@/lib/discovery/runsRepository";
-import { upsertSchedule } from "@/lib/measurement/scheduleRepository";
 import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
-import {
-  upsertChannelRecord,
-  upsertVideoRecord,
-} from "@/lib/snapshots/repository";
+import { upsertChannelRecord } from "@/lib/snapshots/repository";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import { fetchYouTubeChannelsByIds } from "@/lib/youtube/rankings";
+import type { GenreId } from "@/types";
 import {
   acquireWatchlistLock,
   getDueWatchlistChannels,
@@ -51,9 +48,7 @@ export interface WatchlistDiscoveryDeps {
   fetchUploadVideos: typeof fetchDiscoveredUploadVideos;
   fetchChannels: typeof fetchYouTubeChannelsByIds;
   upsertChannel: typeof upsertChannelRecord;
-  upsertVideo: typeof upsertVideoRecord;
-  recordDiscovery: typeof recordDiscovery;
-  upsertSchedule: typeof upsertSchedule;
+  registerDiscoveryCandidate: typeof registerDiscoveryCandidate;
   markChecked: typeof markWatchlistChecked;
   incrementFailure: typeof incrementWatchlistFailureCount;
   findRunningRun: typeof findRecentRunningDiscoveryRun;
@@ -68,9 +63,7 @@ const defaultDeps: WatchlistDiscoveryDeps = {
   fetchUploadVideos: fetchDiscoveredUploadVideos,
   fetchChannels: fetchYouTubeChannelsByIds,
   upsertChannel: upsertChannelRecord,
-  upsertVideo: upsertVideoRecord,
-  recordDiscovery,
-  upsertSchedule,
+  registerDiscoveryCandidate,
   markChecked: markWatchlistChecked,
   incrementFailure: incrementWatchlistFailureCount,
   findRunningRun: findRecentRunningDiscoveryRun,
@@ -124,34 +117,33 @@ async function processWatchlistChannel(
     let discoveriesDuplicate = 0;
 
     for (const item of items) {
-      await deps.upsertVideo(
-        buildVideoUpsertFromYouTubeItem({
+      const registration = await deps.registerDiscoveryCandidate({
+        video: buildVideoUpsertFromYouTubeItem({
           item,
           channel: channelDetails,
           lastSeenAt: now,
         }),
-      );
-
-      const result = await deps.recordDiscovery({
-        videoId: item.id,
-        channelId: item.snippet.channelId,
+        channel: buildChannelUpsertFromYouTube(
+          channelDetails,
+          channel.channel_id,
+          channel.name ?? item.snippet.channelTitle ?? channel.channel_id,
+        ),
         sourceType: "watchlist_upload",
         sourceKey: buildWatchlistUploadSourceKey(channel.channel_id),
+        genreHint: channel.category as GenreId | undefined,
         metadata: {
           watchlistSource: channel.source,
           watchlistCategory: channel.category,
           publishedAt: item.snippet.publishedAt,
-          registrationPath: "watchlist_discovery",
         },
+        registrationPath: "watchlist_discovery",
       });
 
-      if (result === "inserted") {
+      if (registration.discoveryInserted) {
         discoveriesInserted += 1;
       } else {
         discoveriesDuplicate += 1;
       }
-
-      await deps.upsertSchedule(item.id);
     }
 
     await deps.markChecked(channel.channel_id);

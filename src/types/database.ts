@@ -24,6 +24,8 @@ export interface VideoRow {
   is_live: boolean | null;
   is_topic_content: boolean | null;
   first_discovered_at: string | null;
+  last_discovered_at: string | null;
+  discovery_count: number | null;
   last_observed_at: string | null;
   view_count: number | null;
   like_count: number | null;

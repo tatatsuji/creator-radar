@@ -48,6 +48,10 @@ export const DISCOVERY_SOURCE_TYPES = [
   "db_remeasure",
   "related",
   "manual",
+  "websub",
+  "keyword_search",
+  "channel_expansion",
+  "auto_watchlist",
 ] as const;
 export type DiscoverySourceType = (typeof DISCOVERY_SOURCE_TYPES)[number];
 

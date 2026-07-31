@@ -16,9 +16,7 @@ describe("runWatchlistDiscovery concurrent guard", () => {
         fetchUploadVideos: vi.fn(),
         fetchChannels: vi.fn(),
         upsertChannel: vi.fn(),
-        upsertVideo: vi.fn(),
-        recordDiscovery: vi.fn(),
-        upsertSchedule: vi.fn(),
+        registerDiscoveryCandidate: vi.fn(),
         markChecked: vi.fn(),
         incrementFailure: vi.fn(),
         findRunningRun: vi.fn().mockResolvedValue({

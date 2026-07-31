@@ -45,27 +45,25 @@ describe("buzzCandidateRegistration", () => {
   });
 
   it("registers new buzz candidates without duplicating schedules", async () => {
-    const upsertVideo = vi.fn().mockResolvedValue(undefined);
-    const upsertChannel = vi.fn().mockResolvedValue(undefined);
-    const recordDiscovery = vi
+    const registerDiscoveryCandidate = vi
       .fn()
-      .mockResolvedValueOnce("inserted")
-      .mockResolvedValueOnce("duplicate");
-    const upsertSchedule = vi
-      .fn()
-      .mockResolvedValueOnce({ videoId: "video1234567", status: "created" })
-      .mockResolvedValueOnce({ videoId: "video1234568", status: "exists" });
+      .mockResolvedValueOnce({
+        videoInserted: true,
+        discoveryInserted: true,
+        scheduleCreated: true,
+      })
+      .mockResolvedValueOnce({
+        videoInserted: false,
+        discoveryInserted: false,
+        scheduleCreated: false,
+      });
 
     const result = await registerBuzzCandidatesFromVideos(
       [makeVideo("video1234567"), makeVideo("video1234568")],
       { period: "24h", genre: "all", limit: 10 },
       {
         findExistingVideoIds: vi.fn().mockResolvedValue(new Set(["video1234568"])),
-        upsertChannel,
-        upsertVideo,
-        recordDiscovery,
-        upsertSchedule,
-        fetchChannels: vi.fn(),
+        registerDiscoveryCandidate,
       },
     );
 
@@ -79,8 +77,7 @@ describe("buzzCandidateRegistration", () => {
       schedulesExisting: 1,
       failures: 0,
     });
-    expect(upsertVideo).toHaveBeenCalledTimes(2);
-    expect(upsertSchedule).toHaveBeenCalledTimes(2);
+    expect(registerDiscoveryCandidate).toHaveBeenCalledTimes(2);
   });
 
   it("marks recent high-view videos as hot candidates", () => {

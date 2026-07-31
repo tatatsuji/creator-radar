@@ -3,14 +3,10 @@ import {
   buildVideoUpsertFromYouTubeItem,
 } from "@/lib/discovery/parseYouTubeVideoForStorage";
 import { buildMostPopularSourceKey, buildSearchSourceKey } from "@/lib/discovery/sourceKey";
-import { recordDiscovery } from "@/lib/discovery/repository";
-import { upsertSchedule } from "@/lib/measurement/scheduleRepository";
+import { registerDiscoveryCandidate } from "@/lib/discovery/registerDiscoveryCandidate";
+import { inferFormatHintFromVideo } from "@/lib/discovery/discoveryMetadata";
 import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
-import {
-  findExistingVideoIds,
-  upsertChannelRecord,
-  upsertVideoRecord,
-} from "@/lib/snapshots/repository";
+import { findExistingVideoIds } from "@/lib/snapshots/repository";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import { getPeriodHours } from "@/lib/ranking/periods";
 import type { GenreId, RankingPeriod, Video } from "@/types";
@@ -42,20 +38,12 @@ export interface BuzzRegistrationContext {
 
 export interface BuzzCandidateRegistrationDeps {
   findExistingVideoIds: typeof findExistingVideoIds;
-  upsertChannel: typeof upsertChannelRecord;
-  upsertVideo: typeof upsertVideoRecord;
-  recordDiscovery: typeof recordDiscovery;
-  upsertSchedule: typeof upsertSchedule;
-  fetchChannels: typeof fetchYouTubeChannelsByIds;
+  registerDiscoveryCandidate: typeof registerDiscoveryCandidate;
 }
 
 const defaultDeps: BuzzCandidateRegistrationDeps = {
   findExistingVideoIds,
-  upsertChannel: upsertChannelRecord,
-  upsertVideo: upsertVideoRecord,
-  recordDiscovery,
-  upsertSchedule,
-  fetchChannels: fetchYouTubeChannelsByIds,
+  registerDiscoveryCandidate,
 };
 
 function emptyResult(): RegisterBuzzCandidatesResult {
@@ -143,7 +131,7 @@ export async function registerBuzzCandidatesFromYouTubeItems(
 
   const { sourceType, sourceKey } = buildBuzzRegistrationSource(context);
   const channelIds = [...new Set(registerable.map((item) => item.snippet.channelId))];
-  const channels = await deps.fetchChannels(channelIds);
+  const channels = await fetchYouTubeChannelsByIds(channelIds);
   const existingVideoIds = await deps.findExistingVideoIds(
     registerable.map((item) => item.id),
   );
@@ -164,24 +152,35 @@ export async function registerBuzzCandidatesFromYouTubeItems(
   for (const item of registerable) {
     try {
       const channel = channels.get(item.snippet.channelId);
+      const videoUpsert = buildVideoUpsertFromYouTubeItem({
+        item,
+        channel,
+        lastSeenAt: now,
+        classificationOverride,
+      });
+      const wasExisting = existingVideoIds.has(item.id);
 
-      await deps.upsertChannel(
-        buildChannelUpsertFromYouTube(
+      const registration = await deps.registerDiscoveryCandidate({
+        video: videoUpsert,
+        channel: buildChannelUpsertFromYouTube(
           channel,
           item.snippet.channelId,
           item.snippet.channelTitle,
         ),
-      );
-
-      const wasExisting = existingVideoIds.has(item.id);
-      await deps.upsertVideo(
-        buildVideoUpsertFromYouTubeItem({
-          item,
-          channel,
-          lastSeenAt: now,
-          classificationOverride,
+        sourceType,
+        sourceKey,
+        genreHint: context.genre,
+        formatHint: inferFormatHintFromVideo({
+          isShort: videoUpsert.isShort,
+          isLive: videoUpsert.isLive,
         }),
-      );
+        metadata: {
+          period: context.period,
+          genre: context.genre,
+          publishedAt: item.snippet.publishedAt,
+        },
+        registrationPath: context.registrationPath ?? "candidate_discovery",
+      });
 
       if (wasExisting) {
         result.videosUpdated += 1;
@@ -190,27 +189,13 @@ export async function registerBuzzCandidatesFromYouTubeItems(
         existingVideoIds.add(item.id);
       }
 
-      const discoveryResult = await deps.recordDiscovery({
-        videoId: item.id,
-        channelId: item.snippet.channelId,
-        sourceType,
-        sourceKey,
-        metadata: {
-          period: context.period,
-          genre: context.genre,
-          publishedAt: item.snippet.publishedAt,
-          registrationPath: context.registrationPath ?? "candidate_discovery",
-        },
-      });
-
-      if (discoveryResult === "inserted") {
+      if (registration.discoveryInserted) {
         result.discoveriesInserted += 1;
       } else {
         result.discoveriesDuplicate += 1;
       }
 
-      const scheduleResult = await deps.upsertSchedule(item.id);
-      if (scheduleResult.status === "created") {
+      if (registration.scheduleCreated) {
         result.schedulesCreated += 1;
       } else {
         result.schedulesExisting += 1;
@@ -256,22 +241,37 @@ export async function registerBuzzCandidatesFromVideos(
 
   for (const video of registerable) {
     try {
-      await deps.upsertChannel({
-        youtubeChannelId: video.channel.id,
-        name: video.channel.name,
-        thumbnailUrl: video.channel.thumbnailUrl,
-        subscriberCountHidden: video.channel.subscriberCountHidden ?? false,
-      });
-
       const wasExisting = existingVideoIds.has(video.id);
-      await deps.upsertVideo({
-        youtubeVideoId: video.id,
-        title: video.title,
-        channelId: video.channel.id,
-        channelName: video.channel.name,
-        thumbnailUrl: video.thumbnailUrl,
-        publishedAt: video.publishedAt,
-        lastSeenAt: now,
+
+      const registration = await deps.registerDiscoveryCandidate({
+        video: {
+          youtubeVideoId: video.id,
+          title: video.title,
+          channelId: video.channel.id,
+          channelName: video.channel.name,
+          thumbnailUrl: video.thumbnailUrl,
+          publishedAt: video.publishedAt,
+          lastSeenAt: now,
+        },
+        channel: {
+          youtubeChannelId: video.channel.id,
+          name: video.channel.name,
+          thumbnailUrl: video.channel.thumbnailUrl,
+          subscriberCountHidden: video.channel.subscriberCountHidden ?? false,
+        },
+        sourceType,
+        sourceKey,
+        genreHint: context.genre,
+        metadata: {
+          period: context.period,
+          genre: context.genre,
+          publishedAt: video.publishedAt,
+          hotCandidate: shouldUseHotMeasurementTier({
+            publishedAt: video.publishedAt,
+            viewCount: video.viewCount,
+          }),
+        },
+        registrationPath: "ranking_view",
       });
 
       if (wasExisting) {
@@ -281,31 +281,13 @@ export async function registerBuzzCandidatesFromVideos(
         existingVideoIds.add(video.id);
       }
 
-      const discoveryResult = await deps.recordDiscovery({
-        videoId: video.id,
-        channelId: video.channel.id,
-        sourceType,
-        sourceKey,
-        metadata: {
-          period: context.period,
-          genre: context.genre,
-          publishedAt: video.publishedAt,
-          registrationPath: "ranking_view",
-          hotCandidate: shouldUseHotMeasurementTier({
-            publishedAt: video.publishedAt,
-            viewCount: video.viewCount,
-          }),
-        },
-      });
-
-      if (discoveryResult === "inserted") {
+      if (registration.discoveryInserted) {
         result.discoveriesInserted += 1;
       } else {
         result.discoveriesDuplicate += 1;
       }
 
-      const scheduleResult = await deps.upsertSchedule(video.id);
-      if (scheduleResult.status === "created") {
+      if (registration.scheduleCreated) {
         result.schedulesCreated += 1;
       } else {
         result.schedulesExisting += 1;

@@ -5,6 +5,10 @@ import { recordDiscovery } from "@/lib/discovery/repository";
 const mockInsert = vi.fn();
 const mockFrom = vi.fn(() => ({ insert: mockInsert }));
 
+vi.mock("@/lib/snapshots/repository", () => ({
+  touchVideoDiscoveryStats: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   isSupabaseConfigured: () => true,
   createSupabaseServerClient: () => ({

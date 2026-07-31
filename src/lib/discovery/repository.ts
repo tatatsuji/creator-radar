@@ -1,8 +1,14 @@
 import {
+  buildDiscoveryMetadata,
+  type DiscoveryFormatHint,
+} from "@/lib/discovery/discoveryMetadata";
+import {
   createSupabaseServerClient,
   isSupabaseConfigured,
 } from "@/lib/supabase/server";
+import { touchVideoDiscoveryStats } from "@/lib/snapshots/repository";
 import type { CandidateDiscoveryRow } from "@/types/database";
+import type { GenreId } from "@/types";
 import type { DiscoverySourceType } from "@/types/observability";
 import { isDiscoverySourceType } from "@/types/observability";
 
@@ -12,6 +18,9 @@ export interface RecordDiscoveryInput {
   sourceType: DiscoverySourceType;
   sourceKey: string;
   discoveredAt?: string;
+  genreHint?: GenreId | null;
+  formatHint?: DiscoveryFormatHint | null;
+  searchQuery?: string | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -37,28 +46,45 @@ function isDuplicateKeyError(error: { code?: string }): boolean {
   return error.code === "23505";
 }
 
+function mergeDiscoveryMetadata(input: RecordDiscoveryInput): Record<string, unknown> {
+  return buildDiscoveryMetadata({
+    genreHint: input.genreHint ?? null,
+    formatHint: input.formatHint ?? null,
+    searchQuery: input.searchQuery ?? null,
+    extra: input.metadata,
+  });
+}
+
 export async function recordDiscovery(
   input: RecordDiscoveryInput,
 ): Promise<"inserted" | "duplicate"> {
   validateDiscoveryInput(input);
   assertSupabaseConfigured();
 
+  const discoveredAt = input.discoveredAt ?? new Date().toISOString();
   const supabase = createSupabaseServerClient();
   const { error } = await supabase.from("candidate_discoveries").insert({
     video_id: input.videoId,
     channel_id: input.channelId ?? null,
     source_type: input.sourceType,
     source_key: input.sourceKey,
-    discovered_at: input.discoveredAt ?? new Date().toISOString(),
-    metadata: input.metadata ?? null,
+    discovered_at: discoveredAt,
+    metadata: mergeDiscoveryMetadata(input),
   });
 
   if (error) {
     if (isDuplicateKeyError(error)) {
+      await touchVideoDiscoveryStats(input.videoId, discoveredAt, {
+        incrementCount: false,
+      });
       return "duplicate";
     }
     throw new Error(`candidate_discoveries insert failed: ${error.message}`);
   }
+
+  await touchVideoDiscoveryStats(input.videoId, discoveredAt, {
+    incrementCount: true,
+  });
 
   return "inserted";
 }
@@ -141,4 +167,9 @@ export async function countCandidateDiscoveries(): Promise<number> {
   }
 
   return count ?? 0;
+}
+
+export async function countDistinctDiscoverySources(videoId: string): Promise<number> {
+  const sources = await findVideoDiscoverySources(videoId);
+  return new Set(sources.map((row) => `${row.source_type}:${row.source_key}`)).size;
 }

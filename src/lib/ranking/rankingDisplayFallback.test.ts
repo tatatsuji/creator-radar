@@ -34,6 +34,8 @@ function makeVideoRow(overrides: Partial<VideoRow> = {}): VideoRow {
     is_live: false,
     is_topic_content: false,
     first_discovered_at: null,
+    last_discovered_at: null,
+    discovery_count: 0,
     last_observed_at: null,
     view_count: 530_934,
     like_count: null,

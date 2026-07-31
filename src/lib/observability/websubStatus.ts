@@ -1,8 +1,13 @@
 import { getLatestDiscoveryRun } from "@/lib/discovery/runsRepository";
 import {
+  selectWebsubCanaryChannels,
+} from "@/lib/websub/websubCanaryPolicy";
+import {
   getWebsubOperationsEnvironmentStatus,
+  WEBSUB_CANARY_MAX_CHANNELS,
   WEBSUB_CRON_SCHEDULES,
 } from "@/lib/websub/websubOperationsConfig";
+import { listWatchlistChannelsForWebsub } from "@/lib/websub/websubSubscriptionRepository";
 import {
   createSupabaseServerClient,
   isSupabaseConfigured,
@@ -58,6 +63,14 @@ export interface WebsubObservabilityStatus {
       collectedAt: string | null;
     } | null;
   };
+  canary: {
+    maxChannels: number;
+    eligibleCount: number;
+    selectedCount: number;
+    skippedByCapCount: number;
+    selectedByTier: Record<string, number>;
+    liveSubscriptionCount: number;
+  };
   checkedAt: string;
 }
 
@@ -103,6 +116,7 @@ export async function loadWebsubObservabilityStatus(): Promise<WebsubObservabili
     notificationsResult,
     notifications24hResult,
     latestWatchlistRun,
+    watchlistChannels,
   ] = await Promise.all([
     supabase
       .from("websub_subscriptions")
@@ -118,6 +132,7 @@ export async function loadWebsubObservabilityStatus(): Promise<WebsubObservabili
       .select("status,quota_units_used,updated_at")
       .gte("updated_at", since24Hours),
     getLatestDiscoveryRun(),
+    listWatchlistChannelsForWebsub(),
   ]);
 
   if (subscriptionsResult.error) {
@@ -233,6 +248,25 @@ export async function loadWebsubObservabilityStatus(): Promise<WebsubObservabili
       ? (latestWatchlistRun.metadata as Record<string, unknown> | null)
       : null;
 
+  const canarySelection = selectWebsubCanaryChannels(
+    watchlistChannels,
+    WEBSUB_CANARY_MAX_CHANNELS,
+  );
+  const selectedByTier = emptyCounts(["hot", "active", "normal", "cold"]);
+  const selectedChannelIdSet = new Set(canarySelection.selectedChannelIds);
+
+  for (const channel of watchlistChannels) {
+    if (selectedChannelIdSet.has(channel.channelId)) {
+      incrementCount(selectedByTier, channel.watchTier);
+    }
+  }
+
+  const liveSubscriptionCount =
+    (byStatus.pending ?? 0) +
+    (byStatus.pending_verify ?? 0) +
+    (byStatus.active ?? 0) +
+    (byStatus.renew_failed ?? 0);
+
   return {
     environment,
     cronSchedules: WEBSUB_CRON_SCHEDULES,
@@ -294,6 +328,14 @@ export async function loadWebsubObservabilityStatus(): Promise<WebsubObservabili
               collectedAt: latestWatchlistRun.finished_at,
             }
           : null,
+    },
+    canary: {
+      maxChannels: canarySelection.maxChannels,
+      eligibleCount: canarySelection.eligibleCount,
+      selectedCount: canarySelection.selectedChannelIds.length,
+      skippedByCapCount: canarySelection.skippedByCapCount,
+      selectedByTier,
+      liveSubscriptionCount,
     },
     checkedAt: new Date().toISOString(),
   };

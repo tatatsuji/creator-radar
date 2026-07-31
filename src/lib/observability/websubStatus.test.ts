@@ -11,8 +11,13 @@ vi.mock("@/lib/discovery/runsRepository", () => ({
   getLatestDiscoveryRun: vi.fn(),
 }));
 
+vi.mock("@/lib/websub/websubSubscriptionRepository", () => ({
+  listWatchlistChannelsForWebsub: vi.fn(),
+}));
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getLatestDiscoveryRun } from "@/lib/discovery/runsRepository";
+import { listWatchlistChannelsForWebsub } from "@/lib/websub/websubSubscriptionRepository";
 
 function createQueryBuilder(finalResult: { data: unknown; error: unknown }) {
   const builder: Record<string, unknown> = {};
@@ -93,6 +98,12 @@ describe("loadWebsubObservabilityStatus", () => {
       },
     } as never);
 
+    vi.mocked(listWatchlistChannelsForWebsub).mockResolvedValue([
+      { channelId: "UChot-1", watchTier: "hot" },
+      { channelId: "UCcold-1", watchTier: "cold" },
+      { channelId: "UChot-2", watchTier: "hot" },
+    ]);
+
     const status = await loadWebsubObservabilityStatus();
 
     expect(status.environment.enabled).toBe(false);
@@ -112,5 +123,10 @@ describe("loadWebsubObservabilityStatus", () => {
     });
     expect(status.subscribeOperations.last24Hours.successCount).toBe(2);
     expect(status.subscribeOperations.last24Hours.failureCount).toBe(1);
+    expect(status.canary.eligibleCount).toBe(3);
+    expect(status.canary.selectedCount).toBe(3);
+    expect(status.canary.selectedByTier.hot).toBe(2);
+    expect(status.canary.selectedByTier.cold).toBe(1);
+    expect(status.canary.liveSubscriptionCount).toBe(3);
   });
 });

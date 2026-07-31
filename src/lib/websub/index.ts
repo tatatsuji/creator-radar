@@ -9,10 +9,17 @@ export {
 export {
   applyWebsubHubVerification,
   findWebsubSubscriptionByTopic,
+  getWebsubSubscriptionByChannelId,
   type WebsubSubscriptionRow,
   type WebsubSubscriptionRecord,
 } from "@/lib/websub/websubSubscriptionRepository";
 export { computeWebsubSubscriptionHealth } from "@/lib/websub/websubSubscribeHealth";
+export {
+  resolveWatchlistPollMode,
+  getWatchlistPollNextCheckAt,
+  type WatchlistPollMode,
+  type WatchlistPollDecision,
+} from "@/lib/websub/watchlistPollPolicy";
 export { postWebsubHubRequest } from "@/lib/websub/websubHubClient";
 export {
   runWebsubSubscribeNew,

@@ -6,6 +6,7 @@ import {
 } from "@/lib/discovery/parseYouTubeVideoForStorage";
 import {
   fetchDiscoveredUploadVideos,
+  fetchSafetyPollUploadVideos,
   YOUTUBE_UPLOADS_QUOTA,
 } from "@/lib/discovery/youtubeUploads";
 import { registerDiscoveryCandidate } from "@/lib/discovery/registerDiscoveryCandidate";
@@ -17,6 +18,13 @@ import {
 import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
 import { upsertChannelRecord } from "@/lib/snapshots/repository";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { isWebsubEnabled, WEBSUB_CONFIG } from "@/lib/websub/websubConfig";
+import { getWebsubSubscriptionByChannelId } from "@/lib/websub/websubSubscriptionRepository";
+import {
+  getWatchlistPollNextCheckAt,
+  resolveWatchlistPollMode,
+  type WatchlistPollMode,
+} from "@/lib/websub/watchlistPollPolicy";
 import { fetchYouTubeChannelsByIds } from "@/lib/youtube/rankings";
 import type { GenreId } from "@/types";
 import {
@@ -25,6 +33,7 @@ import {
   markWatchlistChecked,
   markWatchlistFailure,
   releaseWatchlistLock,
+  updateWatchlistNextCheckAt,
   type WatchlistLockHandle,
 } from "@/lib/watchlist/repository";
 import type { ChannelWatchlistRow } from "@/types/database";
@@ -36,6 +45,9 @@ export interface WatchlistDiscoveryResult {
   channelsDue: number;
   channelsProcessed: number;
   channelsFailed: number;
+  channelsSkippedWebsubHealthy: number;
+  channelsSafetyPoll: number;
+  channelsNormalPoll: number;
   videosDiscovered: number;
   discoveriesInserted: number;
   discoveriesDuplicate: number;
@@ -48,6 +60,7 @@ export interface WatchlistDiscoveryDeps {
   acquireLock: typeof acquireWatchlistLock;
   releaseLock: typeof releaseWatchlistLock;
   fetchUploadVideos: typeof fetchDiscoveredUploadVideos;
+  fetchSafetyPollVideos: typeof fetchSafetyPollUploadVideos;
   fetchChannels: typeof fetchYouTubeChannelsByIds;
   upsertChannel: typeof upsertChannelRecord;
   registerDiscoveryCandidate: typeof registerDiscoveryCandidate;
@@ -57,6 +70,11 @@ export interface WatchlistDiscoveryDeps {
   findRunningRun: typeof findRecentRunningDiscoveryRun;
   startRun: typeof startDiscoveryRun;
   finishRun: typeof finishDiscoveryRun;
+  isWebsubEnabled: () => boolean;
+  getWebsubSubscription: typeof getWebsubSubscriptionByChannelId;
+  resolvePollMode: typeof resolveWatchlistPollMode;
+  updateNextCheckAt: typeof updateWatchlistNextCheckAt;
+  now: () => Date;
 }
 
 const defaultDeps: WatchlistDiscoveryDeps = {
@@ -64,6 +82,7 @@ const defaultDeps: WatchlistDiscoveryDeps = {
   acquireLock: acquireWatchlistLock,
   releaseLock: releaseWatchlistLock,
   fetchUploadVideos: fetchDiscoveredUploadVideos,
+  fetchSafetyPollVideos: fetchSafetyPollUploadVideos,
   fetchChannels: fetchYouTubeChannelsByIds,
   upsertChannel: upsertChannelRecord,
   registerDiscoveryCandidate,
@@ -73,6 +92,11 @@ const defaultDeps: WatchlistDiscoveryDeps = {
   findRunningRun: findRecentRunningDiscoveryRun,
   startRun: startDiscoveryRun,
   finishRun: finishDiscoveryRun,
+  isWebsubEnabled,
+  getWebsubSubscription: getWebsubSubscriptionByChannelId,
+  resolvePollMode: resolveWatchlistPollMode,
+  updateNextCheckAt: updateWatchlistNextCheckAt,
+  now: () => new Date(),
 };
 
 async function processWatchlistChannel(
@@ -83,6 +107,7 @@ async function processWatchlistChannel(
   discoveriesInserted: number;
   discoveriesDuplicate: number;
   quotaUsed: number;
+  pollMode: WatchlistPollMode | "locked";
   error?: string;
 }> {
   let lock: WatchlistLockHandle | null = null;
@@ -95,13 +120,47 @@ async function processWatchlistChannel(
         discoveriesInserted: 0,
         discoveriesDuplicate: 0,
         quotaUsed: 0,
+        pollMode: "locked",
         error: `Channel ${channel.channel_id} is locked`,
       };
     }
 
-    const { items, quotaUsed } = await deps.fetchUploadVideos(
-      channel.channel_id,
-    );
+    const now = deps.now();
+    const subscription = deps.isWebsubEnabled()
+      ? await deps.getWebsubSubscription(channel.channel_id)
+      : null;
+    const pollDecision = deps.resolvePollMode({
+      websubEnabled: deps.isWebsubEnabled(),
+      subscriptionHealth: subscription?.subscription_health ?? null,
+      lastCheckedAt: channel.last_checked_at,
+      now,
+      safetyPollIntervalMs: WEBSUB_CONFIG.safetyPollIntervalMs,
+    });
+
+    if (pollDecision.mode === "skip") {
+      await deps.updateNextCheckAt(
+        channel.channel_id,
+        getWatchlistPollNextCheckAt({
+          mode: "skip",
+          lastCheckedAt: channel.last_checked_at,
+          now,
+          safetyPollIntervalMs: WEBSUB_CONFIG.safetyPollIntervalMs,
+        }),
+      );
+
+      return {
+        videosDiscovered: 0,
+        discoveriesInserted: 0,
+        discoveriesDuplicate: 0,
+        quotaUsed: 0,
+        pollMode: "skip",
+      };
+    }
+
+    const { items, quotaUsed } =
+      pollDecision.mode === "safety"
+        ? await deps.fetchSafetyPollVideos(channel.channel_id)
+        : await deps.fetchUploadVideos(channel.channel_id);
 
     const channels = await deps.fetchChannels([channel.channel_id]);
     const channelDetails = channels.get(channel.channel_id);
@@ -116,7 +175,7 @@ async function processWatchlistChannel(
       );
     }
 
-    const now = new Date().toISOString();
+    const nowIso = deps.now().toISOString();
     let discoveriesInserted = 0;
     let discoveriesDuplicate = 0;
 
@@ -134,7 +193,7 @@ async function processWatchlistChannel(
         video: buildVideoUpsertFromYouTubeItem({
           item,
           channel: channelDetails,
-          lastSeenAt: now,
+          lastSeenAt: nowIso,
         }),
         channel: buildChannelUpsertFromYouTube(
           channelDetails,
@@ -164,6 +223,16 @@ async function processWatchlistChannel(
       isWatchTier(channel.watch_tier)
         ? channel.watch_tier
         : OBSERVABILITY_CONFIG.defaults.watchTier,
+      pollDecision.mode === "safety"
+        ? {
+            nextCheckAt: getWatchlistPollNextCheckAt({
+              mode: "safety",
+              lastCheckedAt: channel.last_checked_at,
+              now,
+              safetyPollIntervalMs: WEBSUB_CONFIG.safetyPollIntervalMs,
+            }),
+          }
+        : undefined,
     );
 
     return {
@@ -171,6 +240,7 @@ async function processWatchlistChannel(
       discoveriesInserted,
       discoveriesDuplicate,
       quotaUsed,
+      pollMode: pollDecision.mode,
     };
   } catch (error) {
     await deps.markFailure(channel.channel_id);
@@ -179,6 +249,7 @@ async function processWatchlistChannel(
       discoveriesInserted: 0,
       discoveriesDuplicate: 0,
       quotaUsed: YOUTUBE_UPLOADS_QUOTA.perChannelWithoutVideos,
+      pollMode: "locked",
       error:
         error instanceof Error
           ? `${channel.channel_id}: ${error.message}`
@@ -211,6 +282,9 @@ export async function runWatchlistDiscovery(
 
   let channelsProcessed = 0;
   let channelsFailed = 0;
+  let channelsSkippedWebsubHealthy = 0;
+  let channelsSafetyPoll = 0;
+  let channelsNormalPoll = 0;
   let videosDiscovered = 0;
   let discoveriesInserted = 0;
   let discoveriesDuplicate = 0;
@@ -221,6 +295,12 @@ export async function runWatchlistDiscovery(
     const result = await processWatchlistChannel(channel, deps);
     youtubeQuotaEstimate += result.quotaUsed;
 
+    if (result.pollMode === "skip") {
+      channelsSkippedWebsubHealthy += 1;
+      channelsProcessed += 1;
+      continue;
+    }
+
     if (result.error) {
       channelsFailed += 1;
       errors.push(result.error);
@@ -228,6 +308,11 @@ export async function runWatchlistDiscovery(
     }
 
     channelsProcessed += 1;
+    if (result.pollMode === "safety") {
+      channelsSafetyPoll += 1;
+    } else if (result.pollMode === "normal") {
+      channelsNormalPoll += 1;
+    }
     videosDiscovered += result.videosDiscovered;
     discoveriesInserted += result.discoveriesInserted;
     discoveriesDuplicate += result.discoveriesDuplicate;
@@ -251,6 +336,9 @@ export async function runWatchlistDiscovery(
       channelsDue: dueChannels.length,
       videosDiscovered,
       discoveriesDuplicate,
+      channelsSkippedWebsubHealthy,
+      channelsSafetyPoll,
+      channelsNormalPoll,
     },
   });
 
@@ -260,6 +348,9 @@ export async function runWatchlistDiscovery(
     channelsDue: dueChannels.length,
     channelsProcessed,
     channelsFailed,
+    channelsSkippedWebsubHealthy,
+    channelsSafetyPoll,
+    channelsNormalPoll,
     videosDiscovered,
     discoveriesInserted,
     discoveriesDuplicate,

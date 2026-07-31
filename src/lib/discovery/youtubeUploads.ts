@@ -32,7 +32,13 @@ interface YouTubePlaylistItemSnippet {
 
 interface YouTubePlaylistItemsResponse {
   items: Array<{
-    snippet?: YouTubePlaylistItemSnippet;
+    snippet?: YouTubePlaylistItemSnippet & {
+      title?: string;
+      publishedAt?: string;
+      channelId?: string;
+      channelTitle?: string;
+      thumbnails?: YouTubeVideoItem["snippet"]["thumbnails"];
+    };
   }>;
 }
 
@@ -149,6 +155,56 @@ async function fetchUploadVideoItems(
   );
 }
 
+function mapPlaylistSnippetToVideoItem(
+  item: YouTubePlaylistItemsResponse["items"][number],
+): YouTubeVideoItem | null {
+  const videoId = item.snippet?.resourceId?.videoId;
+  const title = item.snippet?.title;
+  const publishedAt = item.snippet?.publishedAt;
+  const channelId = item.snippet?.channelId;
+
+  if (!videoId || !title || !publishedAt || !channelId) {
+    return null;
+  }
+
+  return {
+    id: videoId,
+    snippet: {
+      title,
+      publishedAt,
+      channelId,
+      channelTitle: item.snippet?.channelTitle ?? channelId,
+      thumbnails: item.snippet?.thumbnails ?? {},
+    },
+  };
+}
+
+export async function fetchSafetyPollUploadVideos(
+  channelId: string,
+  deps: FetchDiscoveredUploadVideosDeps = defaultFetchDiscoveredUploadVideosDeps,
+): Promise<{ items: YouTubeVideoItem[]; quotaUsed: number }> {
+  let quotaUsed = 0;
+  const resolved = await resolveUploadsPlaylistId(channelId, deps);
+  quotaUsed += resolved.quotaUsed;
+
+  const response = await youtubeFetch<YouTubePlaylistItemsResponse>(
+    "playlistItems",
+    {
+      part: "snippet",
+      playlistId: resolved.uploadsPlaylistId,
+      maxResults: "1",
+    },
+    0,
+  );
+  quotaUsed += 1;
+
+  const items = response.items
+    .map((item) => mapPlaylistSnippetToVideoItem(item))
+    .filter((item): item is YouTubeVideoItem => item !== null);
+
+  return { items, quotaUsed };
+}
+
 export async function fetchDiscoveredUploadVideos(
   channelId: string,
   maxResults: number = DEFAULT_UPLOADS_FETCH_LIMIT,
@@ -198,4 +254,6 @@ export const YOUTUBE_UPLOADS_QUOTA = {
   perChannelWithVideosCached: 2,
   perChannelWithoutVideos: 2,
   perChannelWithoutVideosCached: 1,
+  safetyPollPlaylistItemsOnly: 1,
+  safetyPollWithPlaylistLookup: 2,
 } as const;

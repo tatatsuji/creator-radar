@@ -102,6 +102,13 @@ export const WEBSUB_CONFIG = {
   get dailyRenewWithinMs(): number {
     return this.dailyRenewWithinDays * 24 * 60 * 60 * 1000;
   },
+  safetyPollIntervalHours: readPositiveInt(
+    process.env.WEBSUB_SAFETY_POLL_INTERVAL_HOURS,
+    24,
+  ),
+  get safetyPollIntervalMs(): number {
+    return this.safetyPollIntervalHours * 60 * 60 * 1000;
+  },
 } as const;
 
 export function getWebsubCallbackUrl(): string {

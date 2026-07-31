@@ -52,6 +52,46 @@ function assertSupabaseConfigured(): void {
   }
 }
 
+export async function getWebsubSubscriptionByChannelId(
+  youtubeChannelId: string,
+): Promise<WebsubSubscriptionRecord | null> {
+  assertSupabaseConfigured();
+
+  const supabase = createSupabaseServerClient();
+  const { data: liveData, error: liveError } = await supabase
+    .from("websub_subscriptions")
+    .select(SUBSCRIPTION_SELECT)
+    .eq("youtube_channel_id", youtubeChannelId)
+    .in("status", [...LIVE_SUBSCRIPTION_STATUSES])
+    .maybeSingle();
+
+  if (liveError) {
+    throw new Error(
+      `websub_subscriptions channel lookup failed: ${liveError.message}`,
+    );
+  }
+
+  if (liveData) {
+    return liveData as WebsubSubscriptionRecord;
+  }
+
+  const { data, error } = await supabase
+    .from("websub_subscriptions")
+    .select(SUBSCRIPTION_SELECT)
+    .eq("youtube_channel_id", youtubeChannelId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `websub_subscriptions channel lookup failed: ${error.message}`,
+    );
+  }
+
+  return (data as WebsubSubscriptionRecord | null) ?? null;
+}
+
 export async function findWebsubSubscriptionByTopic(
   topicUrl: string,
 ): Promise<WebsubSubscriptionRow | null> {

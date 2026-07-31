@@ -265,6 +265,7 @@ export async function updateWatchlistNextCheckAt(
 export async function markWatchlistChecked(
   channelId: string,
   watchTier: WatchTier,
+  options?: { nextCheckAt?: Date },
 ): Promise<void> {
   if (!isWatchTier(watchTier)) {
     throw new Error(`Invalid watch tier: ${watchTier}`);
@@ -274,7 +275,8 @@ export async function markWatchlistChecked(
 
   const supabase = createSupabaseServerClient();
   const now = new Date();
-  const nextCheckAt = computeNextWatchlistCheckAt(watchTier, now);
+  const nextCheckAt =
+    options?.nextCheckAt ?? computeNextWatchlistCheckAt(watchTier, now);
 
   const { error } = await supabase
     .from("channel_watchlist")

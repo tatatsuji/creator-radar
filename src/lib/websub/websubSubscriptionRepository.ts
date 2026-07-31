@@ -4,6 +4,7 @@ import {
 } from "@/lib/supabase/server";
 import { computeWebsubSubscriptionHealth } from "@/lib/websub/websubSubscribeHealth";
 import { buildWebsubTopicUrl, isValidWebsubTopicUrl } from "@/lib/websub/websubTopic";
+import type { WebsubCanaryWatchlistCandidate } from "@/lib/websub/websubCanaryPolicy";
 import { getWebsubCallbackUrl, WEBSUB_CONFIG } from "@/lib/websub/websubConfig";
 import type {
   WebsubSubscriptionHealth,
@@ -113,8 +114,8 @@ export async function findWebsubSubscriptionByTopic(
   return data ?? null;
 }
 
-export async function listWatchlistChannelIdsEligibleForWebsub(): Promise<
-  string[]
+export async function listWatchlistChannelsForWebsub(): Promise<
+  WebsubCanaryWatchlistCandidate[]
 > {
   assertSupabaseConfigured();
 
@@ -129,7 +130,17 @@ export async function listWatchlistChannelIdsEligibleForWebsub(): Promise<
     throw new Error(`channel_watchlist lookup failed: ${error.message}`);
   }
 
-  return (data ?? []).map((row) => row.channel_id as string);
+  return (data ?? []).map((row) => ({
+    channelId: row.channel_id as string,
+    watchTier: row.watch_tier as string,
+  }));
+}
+
+export async function listWatchlistChannelIdsEligibleForWebsub(): Promise<
+  string[]
+> {
+  const channels = await listWatchlistChannelsForWebsub();
+  return channels.map((channel) => channel.channelId);
 }
 
 export async function listLiveWebsubSubscriptions(): Promise<

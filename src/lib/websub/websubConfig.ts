@@ -41,6 +41,15 @@ export const WEBSUB_CONFIG = {
   topicUrlPattern: WEBSUB_TOPIC_URL_PATTERN,
   allowInsecureSignatureBypass:
     process.env.NODE_ENV !== "production" && WEBSUB_HUB_SECRET.length === 0,
+  workerBatchSize: readPositiveInt(process.env.WEBSUB_WORKER_BATCH_SIZE, 50),
+  workerMaxBatchesPerRun: readPositiveInt(
+    process.env.WEBSUB_WORKER_MAX_BATCHES_PER_RUN,
+    4,
+  ),
+  workerProcessingLeaseSeconds: readPositiveInt(
+    process.env.WEBSUB_WORKER_PROCESSING_LEASE_SECONDS,
+    600,
+  ),
 } as const;
 
 export function isWebsubEnabled(): boolean {

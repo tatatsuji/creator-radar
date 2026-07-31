@@ -27,6 +27,7 @@
     "cron:watchlist-discovery": "tsx --env-file=.env.local scripts/trigger-watchlist-discovery.ts",
     "cron:candidate-discovery": "tsx --env-file=.env.local scripts/trigger-candidate-discovery.ts",
     "cron:auto-watchlist": "tsx --env-file=.env.local scripts/trigger-auto-watchlist.ts",
+    "cron:websub-process-notifications": "tsx --env-file=.env.local scripts/trigger-websub-process-notifications.ts",
     "verify:snapshots": "tsx --env-file=.env.local scripts/verify-snapshots.ts",
     "measurement:force-dev": "tsx --env-file=.env.local scripts/force-dev-measurement.ts",
     "measurement:force-dev:dry-run": "tsx --env-file=.env.local scripts/force-dev-measurement.ts --dry-run",

@@ -9,6 +9,7 @@ import {
   buildSearchSourceKey,
   buildSeedSourceKey,
   buildWatchlistUploadSourceKey,
+  buildWebsubSourceKey,
   hashSearchQuery,
   normalizeSearchQuery,
 } from "@/lib/discovery/sourceKey";
@@ -51,6 +52,9 @@ describe("source key builders", () => {
     expect(buildWatchlistUploadSourceKey(SAMPLE_CHANNEL_ID)).toBe(
       SAMPLE_CHANNEL_ID,
     );
+    expect(
+      buildWebsubSourceKey(SAMPLE_CHANNEL_ID, "dQw4w9WgXcQ"),
+    ).toBe(`websub:${SAMPLE_CHANNEL_ID}:dQw4w9WgXcQ`);
   });
 
   it("builds distinct keys per source type", () => {

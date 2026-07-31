@@ -115,6 +115,15 @@ export function buildWatchlistUploadSourceKey(channelId: string): string {
   return assertSourceKeyLength(assertYouTubeChannelId(channelId));
 }
 
+export function buildWebsubSourceKey(
+  channelId: string,
+  videoId: string,
+): string {
+  return assertSourceKeyLength(
+    `websub:${assertYouTubeChannelId(channelId)}:${assertYouTubeVideoId(videoId)}`,
+  );
+}
+
 export function buildSearchSourceKey(query: string): string {
   return assertSourceKeyLength(hashSearchQuery(query));
 }

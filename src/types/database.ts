@@ -27,6 +27,11 @@ export interface VideoRow {
   last_discovered_at: string | null;
   discovery_count: number | null;
   last_observed_at: string | null;
+  availability_status: string | null;
+  unavailable_count: number | null;
+  last_available_at: string | null;
+  first_unavailable_at: string | null;
+  last_unavailable_at: string | null;
   view_count: number | null;
   like_count: number | null;
   comment_count: number | null;

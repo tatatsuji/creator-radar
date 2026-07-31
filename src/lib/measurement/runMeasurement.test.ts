@@ -22,6 +22,13 @@ function makeSchedule(videoId: string): MeasurementScheduleRow {
   };
 }
 
+const availabilityMocks = {
+  fetchAvailabilityStates: vi.fn().mockResolvedValue(new Map()),
+  persistAvailabilityActive: vi.fn().mockResolvedValue(undefined),
+  persistAvailabilityMissing: vi.fn().mockResolvedValue(undefined),
+  stopMeasurementForUnavailable: vi.fn().mockResolvedValue(undefined),
+};
+
 describe("runMeasurement", () => {
   it("stores snapshots and updates schedules on success", async () => {
     const insertSnapshot = vi.fn().mockResolvedValue("inserted");
@@ -46,6 +53,7 @@ describe("runMeasurement", () => {
             commentCount: 2,
           },
         ],
+        missingVideoIds: [],
         quotaUsed: 1,
       }),
       fetchChannelIdsForVideos: vi
@@ -64,6 +72,7 @@ describe("runMeasurement", () => {
       findRunningRun: vi.fn().mockResolvedValue(null),
       createRun: vi.fn().mockResolvedValue("run-1"),
       finishRun,
+      ...availabilityMocks,
     });
 
     expect(result.videosSucceeded).toBe(1);
@@ -95,7 +104,11 @@ describe("runMeasurement", () => {
         skipped: [],
       }),
       releaseLock: vi.fn().mockResolvedValue(undefined),
-      fetchStatistics: vi.fn().mockResolvedValue({ statistics: [], quotaUsed: 1 }),
+      fetchStatistics: vi.fn().mockResolvedValue({
+        statistics: [],
+        missingVideoIds: ["missing-video"],
+        quotaUsed: 1,
+      }),
       fetchChannelIdsForVideos: vi.fn().mockResolvedValue(new Map()),
       fetchChannelSubscriberCounts: vi.fn().mockResolvedValue({
         subscriberCounts: new Map(),
@@ -110,6 +123,7 @@ describe("runMeasurement", () => {
       findRunningRun: vi.fn().mockResolvedValue(null),
       createRun: vi.fn().mockResolvedValue("run-2"),
       finishRun: vi.fn().mockResolvedValue(undefined),
+      ...availabilityMocks,
     });
 
     expect(result.notFound).toBe(1);
@@ -154,6 +168,7 @@ describe("runMeasurement", () => {
             commentCount: 0,
           },
         ],
+        missingVideoIds: [],
         quotaUsed: 1,
       }),
       fetchChannelIdsForVideos: vi
@@ -172,6 +187,7 @@ describe("runMeasurement", () => {
       findRunningRun: vi.fn().mockResolvedValue(null),
       createRun: vi.fn().mockResolvedValue("run-3"),
       finishRun: vi.fn().mockResolvedValue(undefined),
+      ...availabilityMocks,
     });
 
     expect(insertSnapshot).toHaveBeenCalledTimes(1);

@@ -83,6 +83,15 @@ export const MEASUREMENT_STATUSES = [
 ] as const;
 export type MeasurementStatus = (typeof MEASUREMENT_STATUSES)[number];
 
+export const VIDEO_AVAILABILITY_STATUSES = [
+  "active",
+  "unavailable_pending",
+  "deleted_or_private",
+  "unknown_unavailable",
+] as const;
+export type VideoAvailabilityStatus =
+  (typeof VIDEO_AVAILABILITY_STATUSES)[number];
+
 export const PROMOTION_STATES = [
   "HOT",
   "RISING",
@@ -188,6 +197,12 @@ export function isMeasurementStatus(
   value: string,
 ): value is MeasurementStatus {
   return includesValue(MEASUREMENT_STATUSES, value);
+}
+
+export function isVideoAvailabilityStatus(
+  value: string,
+): value is VideoAvailabilityStatus {
+  return includesValue(VIDEO_AVAILABILITY_STATUSES, value);
 }
 
 export function isPromotionReason(value: string): value is PromotionReason {

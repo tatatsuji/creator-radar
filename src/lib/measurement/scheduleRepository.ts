@@ -10,6 +10,7 @@ import {
   createSupabaseServerClient,
   isSupabaseConfigured,
 } from "@/lib/supabase/server";
+import { listDeletedOrPrivateVideoIds } from "@/lib/video/videoAvailabilityRepository";
 import type { MeasurementScheduleRow } from "@/types/database";
 import type { MeasurementStatus, MeasurementTier } from "@/types/observability";
 import {
@@ -150,11 +151,19 @@ export async function getDueVideos(
     throw new Error(`measurement_schedule due lookup failed: ${error.message}`);
   }
 
-  return filterDueMeasurementSchedules(
+  const dueRows = filterDueMeasurementSchedules(
     (data ?? []) as MeasurementScheduleRow[],
-    limit,
+    limit * 3,
     nowMs,
   );
+
+  const deletedOrPrivate = await listDeletedOrPrivateVideoIds(
+    dueRows.map((row) => row.video_id),
+  );
+
+  return dueRows
+    .filter((row) => !deletedOrPrivate.has(row.video_id))
+    .slice(0, limit);
 }
 
 export async function acquireMeasurementLock(
@@ -313,6 +322,30 @@ export async function markMeasurementFailure(
 
   if (error) {
     throw new Error(`measurement_schedule failure update failed: ${error.message}`);
+  }
+}
+
+export async function markMeasurementStoppedForUnavailable(
+  videoId: string,
+): Promise<void> {
+  assertSupabaseConfigured();
+
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("measurement_schedule")
+    .update({
+      measurement_status: "failed",
+      next_measurement_at: null,
+      lock_token: null,
+      locked_until: null,
+      updated_at: nowIso(),
+    })
+    .eq("video_id", videoId);
+
+  if (error) {
+    throw new Error(
+      `measurement_schedule unavailable stop failed: ${error.message}`,
+    );
   }
 }
 

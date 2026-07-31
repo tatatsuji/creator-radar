@@ -4,6 +4,7 @@ import {
   getDueVideos,
   incrementFailureCount,
   markMeasurementFailure,
+  markMeasurementStoppedForUnavailable,
   markMeasurementSuccess,
   releaseMeasurementLock,
   type MeasurementLockHandle,
@@ -22,9 +23,22 @@ import {
   updateVideoLastObservedAt,
 } from "@/lib/snapshots/repository";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
+import {
+  applyAvailabilityOnFound,
+  applyAvailabilityOnMissing,
+  createEmptyAvailabilityBatchSummary,
+  type VideoAvailabilityBatchSummary,
+} from "@/lib/video/videoAvailability";
+import {
+  fetchVideoAvailabilityStates,
+  persistVideoAvailabilityActive,
+  persistVideoAvailabilityMissing,
+} from "@/lib/video/videoAvailabilityRepository";
+import { isYouTubeBatchRequestError } from "@/lib/youtube/apiErrors";
 import type { MeasurementScheduleRow } from "@/types/database";
 import type { MeasurementTier } from "@/types/observability";
 import { isMeasurementTier } from "@/types/observability";
+import type { VideoAvailabilityState } from "@/lib/video/videoAvailability";
 
 export interface MeasurementRunResult {
   runId: string;
@@ -37,6 +51,7 @@ export interface MeasurementRunResult {
   videosFailed: number;
   notFound: number;
   youtubeQuotaEstimate: number;
+  availability: VideoAvailabilityBatchSummary;
   startedAt: string;
   finishedAt: string;
   errors: Array<{ videoId: string; reason: string }>;
@@ -58,6 +73,10 @@ export interface MeasurementDeps {
   findRunningRun: typeof findRecentRunningMeasurementRun;
   createRun: typeof createMeasurementSnapshotRun;
   finishRun: typeof finishSnapshotRun;
+  fetchAvailabilityStates: typeof fetchVideoAvailabilityStates;
+  persistAvailabilityActive: typeof persistVideoAvailabilityActive;
+  persistAvailabilityMissing: typeof persistVideoAvailabilityMissing;
+  stopMeasurementForUnavailable: typeof markMeasurementStoppedForUnavailable;
 }
 
 const defaultDeps: MeasurementDeps = {
@@ -76,6 +95,10 @@ const defaultDeps: MeasurementDeps = {
   findRunningRun: findRecentRunningMeasurementRun,
   createRun: createMeasurementSnapshotRun,
   finishRun: finishSnapshotRun,
+  fetchAvailabilityStates: fetchVideoAvailabilityStates,
+  persistAvailabilityActive: persistVideoAvailabilityActive,
+  persistAvailabilityMissing: persistVideoAvailabilityMissing,
+  stopMeasurementForUnavailable: markMeasurementStoppedForUnavailable,
 };
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -92,6 +115,9 @@ async function processNotFoundVideo(
   measuredAt: Date,
   deps: MeasurementDeps,
   errors: MeasurementRunResult["errors"],
+  availabilityStates: Map<string, VideoAvailabilityState>,
+  availabilitySummary: VideoAvailabilityBatchSummary,
+  nowIso: string,
 ): Promise<void> {
   const nextFailureCount = currentFailureCount + 1;
   await deps.markFailure(videoId, {
@@ -100,6 +126,24 @@ async function processNotFoundVideo(
     measuredAt,
   });
   errors.push({ videoId, reason: "not_found" });
+
+  const currentState = availabilityStates.get(videoId) ?? {
+    availabilityStatus: "active" as const,
+    unavailableCount: 0,
+    firstUnavailableAt: null,
+    lastUnavailableAt: null,
+  };
+  const transition = applyAvailabilityOnMissing(currentState, nowIso);
+  availabilityStates.set(videoId, transition.next);
+  await deps.persistAvailabilityMissing(videoId, transition.next, nowIso);
+
+  if (transition.movedToPending) {
+    availabilitySummary.movedToPending += 1;
+  }
+  if (transition.movedToDeletedOrPrivate) {
+    availabilitySummary.movedToDeletedOrPrivate += 1;
+    await deps.stopMeasurementForUnavailable(videoId);
+  }
 }
 
 async function processSuccessfulVideo(
@@ -114,6 +158,9 @@ async function processSuccessfulVideo(
   measuredAt: Date,
   insertedInRun: Set<string>,
   deps: MeasurementDeps,
+  availabilityStates: Map<string, VideoAvailabilityState>,
+  availabilitySummary: VideoAvailabilityBatchSummary,
+  nowIso: string,
 ): Promise<"inserted" | "skipped" | "duplicate_in_run"> {
   if (insertedInRun.has(schedule.video_id)) {
     return "duplicate_in_run";
@@ -140,6 +187,19 @@ async function processSuccessfulVideo(
 
   await deps.updateLastObservedAt(schedule.video_id, measuredAt.toISOString());
 
+  const currentState = availabilityStates.get(schedule.video_id) ?? {
+    availabilityStatus: "active" as const,
+    unavailableCount: 0,
+    firstUnavailableAt: null,
+    lastUnavailableAt: null,
+  };
+  const transition = applyAvailabilityOnFound(currentState, nowIso);
+  if (transition.recoveredToActive) {
+    availabilitySummary.recoveredToActive += 1;
+  }
+  availabilityStates.set(schedule.video_id, transition.next);
+  await deps.persistAvailabilityActive(schedule.video_id, nowIso);
+
   const tier = isMeasurementTier(schedule.measurement_tier)
     ? schedule.measurement_tier
     : ("hot" satisfies MeasurementTier);
@@ -162,6 +222,7 @@ export async function runMeasurement(
 
   const startedAt = new Date();
   const capturedAt = startedAt.toISOString();
+  const nowIso = capturedAt;
   const dueSchedules = await deps.getDueVideos(
     OBSERVABILITY_CONFIG.batchSize.measurement,
   );
@@ -191,6 +252,10 @@ export async function runMeasurement(
   let notFound = 0;
   let youtubeQuotaEstimate = 0;
   const errors: MeasurementRunResult["errors"] = [];
+  const availabilitySummary = createEmptyAvailabilityBatchSummary(
+    lockedVideoIds.length,
+  );
+  const availabilityStates = await deps.fetchAvailabilityStates(lockedVideoIds);
 
   if (uniqueChannelIds.length > 0) {
     const { subscriberCounts, quotaUsed: channelQuotaUsed } =
@@ -203,12 +268,35 @@ export async function runMeasurement(
 
   try {
     for (const batch of chunk(lockedVideoIds, OBSERVABILITY_CONFIG.batchSize.measurement)) {
-      const { statistics, quotaUsed } = await deps.fetchStatistics(batch);
+      let statistics;
+      let missingVideoIds: string[] = [];
+      let quotaUsed = 0;
+
+      try {
+        const batchResult = await deps.fetchStatistics(batch);
+        statistics = batchResult.statistics;
+        missingVideoIds = batchResult.missingVideoIds;
+        quotaUsed = batchResult.quotaUsed;
+      } catch (error) {
+        if (isYouTubeBatchRequestError(error)) {
+          availabilitySummary.apiErrorCount += batch.length;
+          errors.push({
+            videoId: batch[0] ?? "batch",
+            reason: error.kind,
+          });
+          continue;
+        }
+        throw error;
+      }
+
       youtubeQuotaEstimate += quotaUsed;
+      availabilitySummary.returnedCount += statistics.length;
+      availabilitySummary.missingCount += missingVideoIds.length;
 
       const statsByVideoId = new Map(
         statistics.map((entry) => [entry.videoId, entry]),
       );
+      const missingSet = new Set(missingVideoIds);
 
       for (const videoId of batch) {
         const schedule = scheduleByVideoId.get(videoId);
@@ -216,8 +304,7 @@ export async function runMeasurement(
           continue;
         }
 
-        const stats = statsByVideoId.get(videoId);
-        if (!stats) {
+        if (missingSet.has(videoId)) {
           notFound += 1;
           videosFailed += 1;
           await processNotFoundVideo(
@@ -226,7 +313,15 @@ export async function runMeasurement(
             startedAt,
             deps,
             errors,
+            availabilityStates,
+            availabilitySummary,
+            nowIso,
           );
+          continue;
+        }
+
+        const stats = statsByVideoId.get(videoId);
+        if (!stats) {
           continue;
         }
 
@@ -243,6 +338,9 @@ export async function runMeasurement(
             startedAt,
             insertedInRun,
             deps,
+            availabilityStates,
+            availabilitySummary,
+            nowIso,
           );
 
           if (snapshotResult === "inserted") {
@@ -299,6 +397,7 @@ export async function runMeasurement(
         videosRequested: lockedVideoIds.length,
         snapshotsInserted,
         notFound,
+        availability: availabilitySummary,
         startedAt: startedAt.toISOString(),
         finishedAt: finishedAt.toISOString(),
         errors: errors.slice(0, 20),
@@ -316,6 +415,7 @@ export async function runMeasurement(
       videosFailed,
       notFound,
       youtubeQuotaEstimate,
+      availability: availabilitySummary,
       startedAt: startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),
       errors,

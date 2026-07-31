@@ -69,8 +69,42 @@ export const DISCOVERY_RUN_TYPES = [
   "measurement_batch",
   "promotion_batch",
   "ranking_generation",
+  "websub_notification",
 ] as const;
 export type DiscoveryRunType = (typeof DISCOVERY_RUN_TYPES)[number];
+
+export const WEBSUB_SUBSCRIPTION_STATUSES = [
+  "pending",
+  "pending_verify",
+  "active",
+  "renew_failed",
+  "expired",
+  "unsubscribed",
+  "orphaned",
+  "dead",
+] as const;
+export type WebsubSubscriptionStatus =
+  (typeof WEBSUB_SUBSCRIPTION_STATUSES)[number];
+
+export const WEBSUB_SUBSCRIPTION_HEALTH_VALUES = [
+  "healthy",
+  "degraded",
+  "unhealthy",
+] as const;
+export type WebsubSubscriptionHealth =
+  (typeof WEBSUB_SUBSCRIPTION_HEALTH_VALUES)[number];
+
+export const WEBSUB_NOTIFICATION_STATUSES = [
+  "pending",
+  "processing",
+  "processed",
+  "skipped_known",
+  "duplicate",
+  "failed",
+  "dead",
+] as const;
+export type WebsubNotificationStatus =
+  (typeof WEBSUB_NOTIFICATION_STATUSES)[number];
 
 export const MEASUREMENT_TIERS = [
   "critical",
@@ -198,6 +232,24 @@ export function isDiscoveryRunType(value: string): value is DiscoveryRunType {
   return includesValue(DISCOVERY_RUN_TYPES, value);
 }
 
+export function isWebsubSubscriptionStatus(
+  value: string,
+): value is WebsubSubscriptionStatus {
+  return includesValue(WEBSUB_SUBSCRIPTION_STATUSES, value);
+}
+
+export function isWebsubSubscriptionHealth(
+  value: string,
+): value is WebsubSubscriptionHealth {
+  return includesValue(WEBSUB_SUBSCRIPTION_HEALTH_VALUES, value);
+}
+
+export function isWebsubNotificationStatus(
+  value: string,
+): value is WebsubNotificationStatus {
+  return includesValue(WEBSUB_NOTIFICATION_STATUSES, value);
+}
+
 export function isMeasurementTier(value: string): value is MeasurementTier {
   return includesValue(MEASUREMENT_TIERS, value);
 }
@@ -268,11 +320,22 @@ export const DB_CHECK_CONSTRAINT_VALUES = {
   measurement_tier: MEASUREMENT_TIERS,
   measurement_status: MEASUREMENT_STATUSES,
   discovery_run_status: DISCOVERY_RUN_STATUSES,
+  websub_subscription_status: WEBSUB_SUBSCRIPTION_STATUSES,
+  websub_subscription_health: WEBSUB_SUBSCRIPTION_HEALTH_VALUES,
+  websub_notification_status: WEBSUB_NOTIFICATION_STATUSES,
   ranking_period: RANKING_PERIODS,
   genre: GENRE_IDS,
   score_version_default: SCORE_VERSION,
   discovery_algorithm_version_default: DISCOVERY_ALGORITHM_VERSION,
 } as const;
+
+/** Canonical WebSub notification dedup key: `{topic_url}::{youtube_video_id}` */
+export function buildWebsubNotificationDedupKey(
+  topicUrl: string,
+  youtubeVideoId: string,
+): string {
+  return `${topicUrl}::${youtubeVideoId}`;
+}
 
 /**
  * Planned CHECK values for migration 005+ (not applied yet).

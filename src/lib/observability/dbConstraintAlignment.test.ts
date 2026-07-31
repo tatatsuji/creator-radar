@@ -19,6 +19,11 @@ const ADAPTIVE_MEASUREMENT_MIGRATION_PATH = path.join(
   "supabase/migrations/012_adaptive_measurement_tiers.sql",
 );
 
+const WEBSUB_MIGRATION_PATH = path.join(
+  process.cwd(),
+  "supabase/migrations/016_websub_foundation.sql",
+);
+
 function readMigrationSql(): string {
   return readFileSync(MIGRATION_PATH, "utf8");
 }
@@ -106,5 +111,27 @@ describe("migration CHECK alignment", () => {
     expect(sql).toContain(
       "revoke all on public.v_observability_watchlist_summary from anon, authenticated",
     );
+  });
+});
+
+describe("websub migration CHECK alignment", () => {
+  const websubSql = readFileSync(WEBSUB_MIGRATION_PATH, "utf8");
+
+  it("includes every websub subscription status in CHECK constraints", () => {
+    for (const status of DB_CHECK_CONSTRAINT_VALUES.websub_subscription_status) {
+      expect(websubSql).toContain(`'${status}'`);
+    }
+  });
+
+  it("includes every websub subscription health value in CHECK constraints", () => {
+    for (const health of DB_CHECK_CONSTRAINT_VALUES.websub_subscription_health) {
+      expect(websubSql).toContain(`'${health}'`);
+    }
+  });
+
+  it("includes every websub notification status in CHECK constraints", () => {
+    for (const status of DB_CHECK_CONSTRAINT_VALUES.websub_notification_status) {
+      expect(websubSql).toContain(`'${status}'`);
+    }
   });
 });

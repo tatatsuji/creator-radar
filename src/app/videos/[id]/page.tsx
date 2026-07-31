@@ -4,10 +4,6 @@ import { notFound } from "next/navigation";
 import { VideoDetailView } from "@/components/video/VideoDetailView";
 import { getRankingAwarePageDescription } from "@/lib/video/detailContext";
 import { parseHomeUrlState } from "@/lib/home/urlState";
-import {
-  buildVideoAnalysisInput,
-  getRankingOptimizedAnalysis,
-} from "@/lib/video/rankingAnalysis";
 import { getVideoByIdFromDb } from "@/lib/videos/getVideoFromDb";
 
 interface VideoPageProps {
@@ -66,18 +62,11 @@ export default async function VideoPage({ params, searchParams }: VideoPageProps
     notFound();
   }
 
-  const analysisInput = await buildVideoAnalysisInput(video, homeUrlState.period);
-  const analysis = getRankingOptimizedAnalysis(
-    analysisInput,
-    homeUrlState.ranking,
-  );
-
   return (
     <VideoDetailView
       video={video}
       period={homeUrlState.period}
       homeUrlState={homeUrlState}
-      analysis={analysis}
     />
   );
 }

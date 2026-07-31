@@ -4,26 +4,22 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { VideoAnalysisHeader } from "@/components/video/VideoAnalysisHeader";
 import { VideoCollapsibleSection } from "@/components/video/VideoCollapsibleSection";
-import { VideoDetailAnalysis } from "@/components/video/VideoDetailAnalysis";
 import { VideoGrowthMetrics } from "@/components/video/VideoGrowthMetrics";
 import { VideoMeasuredPanel } from "@/components/video/VideoMeasuredPanel";
 import { buildHomeHref, type HomeUrlState } from "@/lib/home/urlState";
 import { HOME_UI_RANKING_LABELS } from "@/lib/ranking/rankingMeta";
-import type { RankingOptimizedAnalysis } from "@/lib/video/rankingAnalysis/types";
 import type { RankingPeriod, Video } from "@/types";
 
 interface VideoDetailViewProps {
   video: Video;
   period: RankingPeriod;
   homeUrlState: HomeUrlState;
-  analysis: RankingOptimizedAnalysis;
 }
 
 export function VideoDetailView({
   video,
   period,
   homeUrlState,
-  analysis,
 }: VideoDetailViewProps) {
   const youtubeUrl = `https://www.youtube.com/watch?v=${video.id}`;
   const rankingHref = buildHomeHref(homeUrlState);
@@ -38,21 +34,23 @@ export function VideoDetailView({
         backLabel={`${rankingLabel}に戻る`}
       />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
-        <div className="space-y-5 sm:space-y-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
+        <div className="space-y-4 sm:space-y-5">
           <VideoAnalysisHeader
             video={video}
             period={period}
             homeUrlState={homeUrlState}
           />
-          <VideoDetailAnalysis analysis={analysis} video={video} />
 
-          <VideoCollapsibleSection
-            title="詳しい数値"
-            description="ランキングと同じ指標の内訳"
-          >
+          <section className="space-y-3" aria-labelledby="video-metrics-heading">
+            <h2
+              id="video-metrics-heading"
+              className="text-sm font-semibold text-zinc-300"
+            >
+              詳しい数値
+            </h2>
             <VideoGrowthMetrics video={video} period={period} compact />
-          </VideoCollapsibleSection>
+          </section>
 
           <VideoCollapsibleSection
             title="再生の推移グラフ"
@@ -61,7 +59,7 @@ export function VideoDetailView({
             <VideoMeasuredPanel videoId={video.id} embedded />
           </VideoCollapsibleSection>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:flex-row sm:pt-5">
             <a
               href={youtubeUrl}
               target="_blank"

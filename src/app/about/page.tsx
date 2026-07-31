@@ -30,7 +30,7 @@ export default function AboutPage() {
             <ul className="list-disc space-y-2 pl-5 text-zinc-400">
               <li>バズ / 伸び始めの2つのランキングで、目的に合った伸びを見つけられます</li>
               <li>ジャンル・Shorts・ライブはフィルターとして、同じランキングを絞り込めます</li>
-              <li>動画詳細で「なぜ話題なのか」「なぜ伸び始めたのか」を確認できます</li>
+              <li>動画詳細で数値と再生推移を確認できます</li>
             </ul>
           </section>
 

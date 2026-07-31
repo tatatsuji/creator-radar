@@ -9,7 +9,6 @@ import {
   formatTotalViews,
   getPeriodIncreaseLabel,
 } from "@/lib/video/detailDisplay";
-import { RANKING_REFERENCE_EXPLANATION } from "@/lib/video/analysisDisplay";
 import { RANKING_REFERENCE_LABEL } from "@/lib/home/copy";
 import type { RankingPeriod, Video } from "@/types";
 
@@ -60,7 +59,6 @@ export function VideoGrowthMetrics({
           label={RANKING_REFERENCE_LABEL}
           value={formatRankingScoreValue(video.metrics.rankingScore)}
           accent
-          note={RANKING_REFERENCE_EXPLANATION}
         />
         <MetricCard label="総再生数" value={formatTotalViews(video.viewCount)} />
         <MetricCard

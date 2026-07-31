@@ -1,7 +1,7 @@
-# WebSub Operations Runbook (Phase 2 Step 6A)
+# WebSub Operations Runbook (Phase 2 Step 6A + 6B)
 
 Operations foundation is deployed with **`WEBSUB_ENABLED=false` by default**.
-Crons and GitHub Actions are wired, but production WebSub stays off until Step 6B canary.
+Crons and GitHub Actions are wired. **Step 6B canary code is ready** — enable the flag only when you are ready to start rollout.
 
 ## Architecture
 
@@ -22,11 +22,24 @@ GitHub Actions: `.github/workflows/websub-cron.yml`
 | `WEBSUB_ENABLED` | `false` | Master feature flag |
 | `WEBSUB_HUB_SECRET` | — | Hub signature + subscribe secret |
 | `WEBSUB_APP_DOMAIN` | — | Public domain for callback URL |
-| `WEBSUB_CANARY_MAX_CHANNELS` | `0` | Canary cap (0 = unlimited) |
+| `WEBSUB_CANARY_MAX_CHANNELS` | `0` | Canary cap (`0` = unlimited) |
 | `WEBSUB_HUB_URL` | Google Hub | Hub endpoint |
 | `WEBSUB_SAFETY_POLL_INTERVAL_HOURS` | `24` | Safety poll interval |
 
 Vercel production must also set `WEBSUB_*` for the callback API route.
+
+## Canary Channel Selection (Step 6B)
+
+When `WEBSUB_ENABLED=true`, **subscribe-new only** applies the canary cap:
+
+1. Eligible watchlist: non-archive, status in `seed` / `discovered` / `active`
+2. Priority: **hot → active → normal → cold → channel_id ascending**
+3. Take first **N** channels (`N = WEBSUB_CANARY_MAX_CHANNELS`)
+4. `N = 0` → no cap (full eligible watchlist)
+
+**Not capped:** renew-urgent, renew-daily, reconcile, notification worker, watchlist poll.
+
+**Cap shrink:** existing subscriptions are **not** auto-unsubscribed. Renew continues for live rows. To stop WebSub entirely, set `WEBSUB_ENABLED=false`.
 
 ## Observability
 
@@ -34,12 +47,14 @@ Vercel production must also set `WEBSUB_*` for the callback API route.
 npm run websub:status
 ```
 
-Metrics (24h window where applicable):
+Key fields:
 
-- Subscribe / renew success rates
-- Callback verification count (`last_verified_at`)
-- Notification backlog, processed, failed, quota units
-- Watchlist poll fallback (`channelsNormalPoll`, `channelsSafetyPoll`, skipped healthy)
+- `environment.enabled` / `environment.canaryMaxChannels`
+- `canary.eligibleCount` / `canary.selectedCount` / `canary.selectedByTier`
+- `canary.liveSubscriptionCount` vs `canary.selectedCount`
+- `subscriptions.byHealth` — target ≥ 90% healthy at full rollout
+- `notifications.backlogPending` — should stay low
+- `watchlistPollFallback` — canary外 channels stay on normal poll
 
 Admin API: `GET /api/admin/observability/status` includes a `websub` section.
 
@@ -50,27 +65,61 @@ Admin API: `GET /api/admin/observability/status` includes a `websub` section.
 3. Callback API returns **410 Gone** when disabled.
 4. Watchlist Discovery continues normal poll (unchanged).
 
-## Canary Rollout (Step 6B — not started)
+## Canary Rollout Procedure
 
-Staged expansion using `WEBSUB_CANARY_MAX_CHANNELS`:
+### Phase 0 — Pre-flight (flag still OFF)
 
-1. **10 channels** — set `WEBSUB_CANARY_MAX_CHANNELS=10`, `WEBSUB_ENABLED=true`
-2. **30 channels** — increase limit to `30`
-3. **100 channels** — increase limit to `100`
-4. **Full watchlist** — set `WEBSUB_CANARY_MAX_CHANNELS=0`
+- [ ] Migration 016 applied
+- [ ] `WEBSUB_HUB_SECRET` set (Vercel + GHA, same value)
+- [ ] `WEBSUB_APP_DOMAIN` = production domain
+- [ ] Step 6B code deployed (`canary` section visible in `websub:status`)
+- [ ] `npm run websub:status` succeeds
 
-Configure secrets in GitHub Actions and Vercel before enabling.
+### Phase 1 — 10 channels
+
+1. Set **Vercel Production** + **GHA secrets**:
+   - `WEBSUB_ENABLED=true`
+   - `WEBSUB_CANARY_MAX_CHANNELS=10`
+2. Redeploy Vercel (env propagation).
+3. GHA manual run: **websub-subscribe-new**
+   - Expect: `canary.selectedCount` ≤ 10, `attempted` ≤ 10
+4. Wait for Hub GET verification → `websub_subscriptions.status = active`
+5. Monitor 24–48h:
+   - `npm run websub:status`
+   - Watchlist / Measurement / Ranking unchanged for non-canary channels
+   - `notifications.backlogPending` stable
+
+### Phase 2 — 30 channels
+
+1. Update `WEBSUB_CANARY_MAX_CHANNELS=30` (Vercel + GHA)
+2. Redeploy Vercel
+3. Manual **websub-subscribe-new** (adds up to 20 new channels)
+4. Monitor 24–48h (same checks)
+
+### Phase 3 — 100 channels
+
+1. Update `WEBSUB_CANARY_MAX_CHANNELS=100`
+2. Manual **websub-subscribe-new**
+3. Monitor 24–48h
+
+### Phase 4 — Full watchlist
+
+1. Set `WEBSUB_CANARY_MAX_CHANNELS=0` (unlimited)
+2. Manual **websub-subscribe-new**
+3. Monitor until `subscription_health = healthy` rate ≥ 90%
 
 ## Feature Flag Rollback
 
-Immediate rollback (no deploy required if env-only):
+Immediate rollback (env-only):
 
 1. Set `WEBSUB_ENABLED=false` in Vercel + GitHub Actions secrets.
 2. Redeploy Vercel (or wait for env propagation).
 3. Verify:
    - `npm run websub:status` → `environment.enabled: false`
    - `GET /api/websub/callback` → 410
-4. Crons become no-ops; Watchlist poll fallback resumes automatically for all channels.
+4. Crons become no-ops; Watchlist poll fallback resumes for all channels.
+
+Existing `websub_subscriptions` rows remain in DB but receive no new Hub traffic while disabled.
 
 ## Incident Response
 
@@ -78,7 +127,7 @@ Immediate rollback (no deploy required if env-only):
 
 1. Check `websub:status` → `notifications.backlogPending`
 2. Check Quota Manager deferred queue (`emergency_discovery`)
-3. Worker runs every 15min; pending rows are preserved on quota defer
+3. Worker runs every 15min; pending rows preserved on quota defer
 4. Watchlist normal poll covers degraded/unhealthy subscriptions
 
 ### Subscription health degraded
@@ -91,29 +140,38 @@ Immediate rollback (no deploy required if env-only):
 
 1. Confirm `WEBSUB_APP_DOMAIN` matches Vercel deployment
 2. Confirm Hub can reach `https://{domain}/api/websub/callback`
-3. Check `WEBSUB_HUB_SECRET` matches Hub subscription
+3. Check `WEBSUB_HUB_SECRET` matches between Vercel and GHA
 
-### Lease expiry
+### Canary channel not subscribing
 
-1. Urgent renew runs every 6h for leases within 72h
-2. Reconcile daily repairs orphaned / expired states
-3. Unhealthy subscriptions fall back to Watchlist poll
+1. Check `canary.selectedByTier` — hot channels selected first
+2. Confirm channel is in eligible watchlist (not archive)
+3. Run subscribe-new manually and inspect JSON `canary` block
 
 ## Manual Job Trigger
 
 GitHub Actions → **Creator Radar WebSub Cron** → **Run workflow** → select job.
 
+Recommended order when enabling:
+
+1. `websub-subscribe-new`
+2. Wait for Hub verification (check DB or status)
+3. `websub-process-notifications`
+4. Confirm watchlist-discovery still processes non-canary channels
+
 Local:
 
 ```bash
-WEBSUB_ENABLED=true npm run cron:websub-subscribe-new
+WEBSUB_ENABLED=true WEBSUB_CANARY_MAX_CHANNELS=10 npm run cron:websub-subscribe-new
 ```
 
-## Pre-Canary Checklist
+## Success Criteria (Step 6B)
 
-- [ ] Migration 016 applied to production DB
-- [ ] `WEBSUB_HUB_SECRET` set (Vercel + GHA)
-- [ ] `WEBSUB_APP_DOMAIN` set to production domain
-- [ ] Callback GET returns challenge for test subscription
-- [ ] `npm run websub:status` succeeds
-- [ ] `WEBSUB_ENABLED` remains `false` until Step 6B approval
+| Check | Target |
+|-------|--------|
+| subscribe-new respects cap | `attempted` ≤ `WEBSUB_CANARY_MAX_CHANNELS` |
+| Hub verification | `active` + `last_verified_at` set |
+| Non-canary watchlist | `channelsNormalPoll` unchanged vs baseline |
+| Healthy rate (full rollout) | ≥ 90% |
+| Notification backlog | Stable, no unbounded growth |
+| Discovery / Measurement / Ranking | No regressions |

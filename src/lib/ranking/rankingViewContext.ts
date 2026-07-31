@@ -8,6 +8,9 @@ import {
 export function resolveActiveContentFilter(
   homeUrlState: HomeUrlState,
 ): ContentFilterViewId | null {
+  if (homeUrlState.genre === "shorts") {
+    return "shorts";
+  }
   if (homeUrlState.format === "short") {
     return "shorts";
   }

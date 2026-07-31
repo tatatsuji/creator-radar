@@ -3,10 +3,7 @@ import {
   computePromotionMetrics,
   type PromotionMetrics,
 } from "@/lib/promotion/metrics";
-import {
-  getYouTubeCategoryId,
-  KNOWN_CATEGORY_IDS,
-} from "@/lib/youtube/categories";
+import { matchesVideoGenre } from "@/lib/ranking/genreFilter";
 import { getBuzzCandidatePoolSize } from "@/lib/ranking/buzzRankingQuality";
 import { getPublishedAfter } from "@/lib/ranking/periods";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
@@ -94,18 +91,6 @@ export function getPublishedAgeHours(publishedAt: string, referenceMs = Date.now
   return Math.max(0, (referenceMs - Date.parse(publishedAt)) / (60 * 60 * 1000));
 }
 
-function matchesGenre(categoryId: string | null, genre: GenreId): boolean {
-  if (genre === "all") {
-    return true;
-  }
-
-  if (genre === "other") {
-    return categoryId !== null && !KNOWN_CATEGORY_IDS.includes(categoryId);
-  }
-
-  return categoryId === getYouTubeCategoryId(genre);
-}
-
 function resolveContentKind(row: VideoRow): Video["contentKind"] {
   if (row.is_live === true) {
     return "live";
@@ -186,7 +171,13 @@ export async function getBuzzRankingCandidatesFromDb(
   );
 
   return rows
-    .filter((row) => matchesGenre(row.category_id, genre))
+    .filter((row) =>
+      matchesVideoGenre({
+        categoryId: row.category_id,
+        isShort: row.is_short,
+        genre,
+      }),
+    )
     .map((row) =>
       mapVideoRowToVideo(
         row,
@@ -238,7 +229,13 @@ export async function getMeasuredRankingCandidates(
   const snapshotsByVideo = await fetchSnapshotsForVideos(videoIds);
 
   return (videoRows ?? [])
-    .filter((row) => matchesGenre(row.category_id, genre))
+    .filter((row) =>
+      matchesVideoGenre({
+        categoryId: row.category_id,
+        isShort: row.is_short,
+        genre,
+      }),
+    )
     .map((row) =>
       mapVideoRowToVideo(
         row as VideoRow,

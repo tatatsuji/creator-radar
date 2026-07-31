@@ -1,7 +1,7 @@
 import type { GenreId } from "@/types";
 
 export const genreToYouTubeCategoryId: Partial<
-  Record<Exclude<GenreId, "all" | "other">, string>
+  Record<Exclude<GenreId, "all" | "other" | "shorts">, string>
 > = {
   entertainment: "24",
   music: "10",
@@ -18,6 +18,10 @@ export const KNOWN_CATEGORY_IDS = Object.values(genreToYouTubeCategoryId);
 export const GENRES_WITHOUT_POPULAR_CHART = new Set<GenreId>(["education"]);
 
 export function genreSupportsPopularChart(genre: GenreId): boolean {
+  if (genre === "shorts") {
+    return false;
+  }
+
   if (genre === "all" || genre === "other") {
     return true;
   }
@@ -26,7 +30,7 @@ export function genreSupportsPopularChart(genre: GenreId): boolean {
 }
 
 export function getYouTubeCategoryId(genre: GenreId): string | undefined {
-  if (genre === "all" || genre === "other") {
+  if (genre === "all" || genre === "other" || genre === "shorts") {
     return undefined;
   }
 

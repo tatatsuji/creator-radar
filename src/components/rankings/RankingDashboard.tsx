@@ -104,7 +104,13 @@ export function RankingDashboard({
           format={urlState.format}
           homeUrlState={urlState}
           onPeriodChange={(period) => updateHomeUrl({ period })}
-          onGenreChange={(genre) => updateHomeUrl({ genre })}
+          onGenreChange={(genre) => {
+            const partial: Partial<HomeUrlState> = { genre };
+            if (genre === "shorts" || urlState.format === "short") {
+              partial.format = "all";
+            }
+            updateHomeUrl(partial);
+          }}
           onFormatChange={(format) => updateHomeUrl({ format })}
           onViewBuzz={() => setRanking("buzz")}
           initialVideos={useInitialPayload ? initialVideos : []}

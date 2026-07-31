@@ -9,6 +9,11 @@ const MIGRATION_PATH = path.join(
   "supabase/migrations/003_phase1_observability_foundation.sql",
 );
 
+const SHORTS_GENRE_MIGRATION_PATH = path.join(
+  process.cwd(),
+  "supabase/migrations/007_ranking_snapshots_shorts_genre.sql",
+);
+
 function readMigrationSql(): string {
   return readFileSync(MIGRATION_PATH, "utf8");
 }
@@ -44,11 +49,14 @@ describe("migration CHECK alignment", () => {
   });
 
   it("includes every ranking period and genre in CHECK constraints", () => {
+    const genreSql =
+      readMigrationSql() + readFileSync(SHORTS_GENRE_MIGRATION_PATH, "utf8");
+
     for (const period of DB_CHECK_CONSTRAINT_VALUES.ranking_period) {
-      expect(sql).toContain(`'${period}'`);
+      expect(readMigrationSql()).toContain(`'${period}'`);
     }
     for (const genre of DB_CHECK_CONSTRAINT_VALUES.genre) {
-      expect(sql).toContain(`'${genre}'`);
+      expect(genreSql).toContain(`'${genre}'`);
     }
   });
 

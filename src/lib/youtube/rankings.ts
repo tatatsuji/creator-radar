@@ -9,6 +9,7 @@ import {
   genreSupportsPopularChart,
   getYouTubeCategoryId,
 } from "@/lib/youtube/categories";
+import { fetchShortFormCandidateItems } from "@/lib/youtube/candidateFetch";
 import { youtubeFetch } from "@/lib/youtube/client";
 import { isChartNotFoundError } from "@/lib/youtube/errors";
 import {
@@ -216,6 +217,10 @@ async function searchVideos(
       params.videoCategoryId = categoryId;
     }
 
+    if (genre === "shorts") {
+      params.videoDuration = "short";
+    }
+
     try {
       const searchResponse = await youtubeFetch<YouTubeSearchResponse>(
         "search",
@@ -249,6 +254,11 @@ function prepareVideoItems(
   genre: GenreId,
 ): YouTubeVideoItem[] {
   const periodFiltered = filterByPublishedAfter(items, period);
+
+  if (genre === "shorts") {
+    return filterByGenreCategory(periodFiltered, "shorts").slice(0, MAX_RESULTS);
+  }
+
   const genreFiltered = filterByGenreCategory(periodFiltered, genre);
   const withoutShorts = filterShortFormVideos(genreFiltered);
 
@@ -259,6 +269,11 @@ async function getVideoItemsForPeriod(
   period: RankingPeriod,
   genre: GenreId,
 ): Promise<YouTubeVideoItem[]> {
+  if (genre === "shorts") {
+    const items = await fetchShortFormCandidateItems(period, MAX_RESULTS);
+    return prepareVideoItems(items, period, genre);
+  }
+
   const searched = await searchVideos(period, genre);
   let combined = searched;
 
@@ -288,6 +303,7 @@ let availableGenresCache: { ids: GenreId[]; expiresAt: number } | null = null;
 
 const BASE_AVAILABLE_GENRES: GenreId[] = [
   "all",
+  "shorts",
   "entertainment",
   "music",
   "game",

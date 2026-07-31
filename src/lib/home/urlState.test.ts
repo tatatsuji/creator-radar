@@ -79,6 +79,26 @@ describe("home url state", () => {
     ).toBe("/?format=short");
   });
 
+  it("maps legacy format=short to genre=shorts", () => {
+    expect(parseHomeUrlState(params({ format: "short" }))).toEqual({
+      ranking: "buzz",
+      period: "24h",
+      genre: "shorts",
+      format: "all",
+    });
+  });
+
+  it("builds home href with shorts genre", () => {
+    expect(
+      buildHomeHref({
+        ranking: "buzz",
+        period: "24h",
+        genre: "shorts",
+        format: "all",
+      }),
+    ).toBe("/?genre=shorts");
+  });
+
   it("builds video detail href and round-trips home state", () => {
     const state = {
       ranking: "early_rise" as const,

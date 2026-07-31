@@ -22,6 +22,13 @@ export function filterByGenreCategory(
     return items;
   }
 
+  if (genre === "shorts") {
+    return items.filter((item) => {
+      const durationSeconds = parseIsoDurationSeconds(item.contentDetails?.duration);
+      return isShortFormVideo(durationSeconds);
+    });
+  }
+
   if (genre === "other") {
     return items.filter((item) => {
       const categoryId = item.snippet.categoryId;

@@ -111,6 +111,7 @@ export type RankingPeriod = (typeof RANKING_PERIODS)[number];
 
 export const GENRE_IDS = [
   "all",
+  "shorts",
   "entertainment",
   "music",
   "game",

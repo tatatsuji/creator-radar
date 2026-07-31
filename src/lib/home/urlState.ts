@@ -34,14 +34,29 @@ export function parseGenreId(value?: string | null): GenreId {
 }
 
 export function parseHomeUrlState(searchParams: SearchParamsReader): HomeUrlState {
+  const format = parseContentFormatFilter(searchParams.get("format"));
+  const genre = parseGenreId(searchParams.get("genre"));
+
+  if (format === "short" && genre === "all") {
+    return {
+      ranking: parseHomeRankingType(
+        searchParams.get("ranking"),
+        searchParams.get("mode"),
+      ),
+      period: parseRankingPeriod(searchParams.get("period")),
+      genre: "shorts",
+      format: "all",
+    };
+  }
+
   return {
     ranking: parseHomeRankingType(
       searchParams.get("ranking"),
       searchParams.get("mode"),
     ),
     period: parseRankingPeriod(searchParams.get("period")),
-    genre: parseGenreId(searchParams.get("genre")),
-    format: parseContentFormatFilter(searchParams.get("format")),
+    genre,
+    format,
   };
 }
 

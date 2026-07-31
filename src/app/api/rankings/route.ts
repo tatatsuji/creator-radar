@@ -11,6 +11,7 @@ import type { GenreId } from "@/types";
 
 const GENRES: GenreId[] = [
   "all",
+  "shorts",
   "entertainment",
   "music",
   "game",

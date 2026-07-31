@@ -9,6 +9,9 @@ describe("rankingViewContext", () => {
       resolveActiveContentFilter({ ...DEFAULT_HOME_URL_STATE, format: "short" }),
     ).toBe("shorts");
     expect(
+      resolveActiveContentFilter({ ...DEFAULT_HOME_URL_STATE, genre: "shorts" }),
+    ).toBe("shorts");
+    expect(
       resolveActiveContentFilter({ ...DEFAULT_HOME_URL_STATE, genre: "game" }),
     ).toBe("genre");
     expect(resolveActiveContentFilter(DEFAULT_HOME_URL_STATE)).toBeNull();

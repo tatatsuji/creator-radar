@@ -50,7 +50,68 @@ export const WEBSUB_CONFIG = {
     process.env.WEBSUB_WORKER_PROCESSING_LEASE_SECONDS,
     600,
   ),
+  leaseBufferHours: readPositiveInt(process.env.WEBSUB_LEASE_BUFFER_HOURS, 48),
+  verifyStaleDays: readPositiveInt(process.env.WEBSUB_VERIFY_STALE_DAYS, 7),
+  leaseRequestSeconds: readPositiveInt(
+    process.env.WEBSUB_LEASE_REQUEST_SECONDS,
+    604800,
+  ),
+  pendingVerifyStaleHours: readPositiveInt(
+    process.env.WEBSUB_PENDING_VERIFY_STALE_HOURS,
+    48,
+  ),
+  maxSubscribeAttempts: readPositiveInt(
+    process.env.WEBSUB_MAX_SUBSCRIBE_ATTEMPTS,
+    5,
+  ),
+  subscribeBatchLimit: readPositiveInt(
+    process.env.WEBSUB_SUBSCRIBE_BATCH_LIMIT,
+    200,
+  ),
+  subscribeConcurrency: readPositiveInt(
+    process.env.WEBSUB_SUBSCRIBE_CONCURRENCY,
+    10,
+  ),
+  urgentRenewWithinHours: readPositiveInt(
+    process.env.WEBSUB_URGENT_RENEW_WITHIN_HOURS,
+    72,
+  ),
+  dailyRenewWithinDays: readPositiveInt(
+    process.env.WEBSUB_DAILY_RENEW_WITHIN_DAYS,
+    7,
+  ),
+  hubUrl:
+    process.env.WEBSUB_HUB_URL?.trim() ??
+    "https://pubsubhubbub.appspot.com/subscribe",
+  appDomain:
+    process.env.WEBSUB_APP_DOMAIN?.trim() ??
+    process.env.VERCEL_URL?.trim() ??
+    "",
+  get leaseBufferMs(): number {
+    return this.leaseBufferHours * 60 * 60 * 1000;
+  },
+  get verifyStaleWindowMs(): number {
+    return this.verifyStaleDays * 24 * 60 * 60 * 1000;
+  },
+  get pendingVerifyStaleMs(): number {
+    return this.pendingVerifyStaleHours * 60 * 60 * 1000;
+  },
+  get urgentRenewWithinMs(): number {
+    return this.urgentRenewWithinHours * 60 * 60 * 1000;
+  },
+  get dailyRenewWithinMs(): number {
+    return this.dailyRenewWithinDays * 24 * 60 * 60 * 1000;
+  },
 } as const;
+
+export function getWebsubCallbackUrl(): string {
+  const domain = WEBSUB_CONFIG.appDomain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  if (!domain) {
+    throw new Error("WEBSUB_APP_DOMAIN (or VERCEL_URL) is required for Subscribe Manager");
+  }
+
+  return `https://${domain}/api/websub/callback`;
+}
 
 export function isWebsubEnabled(): boolean {
   return WEBSUB_CONFIG.enabled;

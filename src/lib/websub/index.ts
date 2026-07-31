@@ -1,4 +1,4 @@
-export { isWebsubEnabled, WEBSUB_CONFIG } from "@/lib/websub/websubConfig";
+export { isWebsubEnabled, WEBSUB_CONFIG, getWebsubCallbackUrl } from "@/lib/websub/websubConfig";
 export { buildWebsubTopicUrl, isValidWebsubTopicUrl, parseChannelIdFromWebsubTopic } from "@/lib/websub/websubTopic";
 export { computeWebsubHubSignature, verifyWebsubHubSignature } from "@/lib/websub/websubSignature";
 export {
@@ -10,7 +10,26 @@ export {
   applyWebsubHubVerification,
   findWebsubSubscriptionByTopic,
   type WebsubSubscriptionRow,
+  type WebsubSubscriptionRecord,
 } from "@/lib/websub/websubSubscriptionRepository";
+export { computeWebsubSubscriptionHealth } from "@/lib/websub/websubSubscribeHealth";
+export { postWebsubHubRequest } from "@/lib/websub/websubHubClient";
+export {
+  runWebsubSubscribeNew,
+  runWebsubRenewUrgent,
+  runWebsubRenewDaily,
+  runWebsubReconcile,
+  markWebsubSubscriptionAsDeadForChannel,
+  type WebsubSubscribeManagerDeps,
+  type WebsubSubscribeManagerResult,
+} from "@/lib/websub/websubSubscribeManager";
+export {
+  runWebsubSubscribeNewCron,
+  runWebsubRenewUrgentCron,
+  runWebsubRenewDailyCron,
+  runWebsubReconcileCron,
+  type WebsubSubscribeManagerCronResult,
+} from "@/lib/websub/runWebsubSubscribeManagerCron";
 export {
   enqueueWebsubNotification,
   claimWebsubNotifications,

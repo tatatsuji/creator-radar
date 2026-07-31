@@ -44,6 +44,11 @@ describe("runMeasurement concurrent guard", () => {
         }),
         createRun: vi.fn(),
         finishRun: vi.fn(),
+        fetchAvailabilityStates: vi.fn(),
+        persistAvailabilityActive: vi.fn(),
+        persistAvailabilityMissing: vi.fn(),
+        stopMeasurementForUnavailable: vi.fn(),
+        markVideoItemMissing: vi.fn(),
       }),
     ).rejects.toThrow("Measurement is already in progress.");
   });
@@ -72,6 +77,7 @@ describe("runMeasurement concurrent guard", () => {
             commentCount: 0,
           },
         ],
+        missingVideoIds: [],
         quotaUsed: 1,
       }),
       fetchChannelIdsForVideos: vi
@@ -90,6 +96,11 @@ describe("runMeasurement concurrent guard", () => {
       findRunningRun: vi.fn().mockResolvedValue(null),
       createRun: vi.fn().mockResolvedValue("run-1"),
       finishRun,
+      fetchAvailabilityStates: vi.fn().mockResolvedValue(new Map()),
+      persistAvailabilityActive: vi.fn().mockResolvedValue(undefined),
+      persistAvailabilityMissing: vi.fn().mockResolvedValue(undefined),
+      stopMeasurementForUnavailable: vi.fn().mockResolvedValue(undefined),
+      markVideoItemMissing: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.videosLocked).toBe(1);

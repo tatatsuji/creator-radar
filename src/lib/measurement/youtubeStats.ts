@@ -1,5 +1,7 @@
+import { classifyYouTubeFetchError } from "@/lib/youtube/apiErrors";
 import { youtubeFetch } from "@/lib/youtube/client";
 import { parseCount } from "@/lib/youtube/helpers";
+import { computeMissingVideoIds } from "@/lib/video/videoAvailability";
 import type { YouTubeChannelsResponse, YouTubeVideosResponse } from "@/lib/youtube/types";
 
 export interface VideoStatistics {
@@ -9,40 +11,55 @@ export interface VideoStatistics {
   commentCount: number | null;
 }
 
+export interface VideoStatisticsBatchResult {
+  statistics: VideoStatistics[];
+  missingVideoIds: string[];
+  quotaUsed: number;
+}
+
 const MAX_VIDEO_IDS_PER_REQUEST = 50;
 
 export async function fetchVideoStatisticsBatch(
   videoIds: string[],
-): Promise<{ statistics: VideoStatistics[]; quotaUsed: number }> {
+): Promise<VideoStatisticsBatchResult> {
   if (videoIds.length === 0) {
-    return { statistics: [], quotaUsed: 0 };
+    return { statistics: [], missingVideoIds: [], quotaUsed: 0 };
   }
 
   if (videoIds.length > MAX_VIDEO_IDS_PER_REQUEST) {
     throw new Error(`videoIds batch exceeds ${MAX_VIDEO_IDS_PER_REQUEST}`);
   }
 
-  const response = await youtubeFetch<YouTubeVideosResponse>(
-    "videos",
-    {
-      part: "statistics",
-      id: videoIds.join(","),
-    },
-    0,
-  );
+  try {
+    const response = await youtubeFetch<YouTubeVideosResponse>(
+      "videos",
+      {
+        part: "statistics",
+        id: videoIds.join(","),
+      },
+      0,
+    );
 
-  const statistics = (response.items ?? []).map((item) => ({
-    videoId: item.id,
-    viewCount: parseCount(item.statistics?.viewCount),
-    likeCount: item.statistics?.likeCount
-      ? parseCount(item.statistics.likeCount)
-      : null,
-    commentCount: item.statistics?.commentCount
-      ? parseCount(item.statistics.commentCount)
-      : null,
-  }));
+    const statistics = (response.items ?? []).map((item) => ({
+      videoId: item.id,
+      viewCount: parseCount(item.statistics?.viewCount),
+      likeCount: item.statistics?.likeCount
+        ? parseCount(item.statistics.likeCount)
+        : null,
+      commentCount: item.statistics?.commentCount
+        ? parseCount(item.statistics.commentCount)
+        : null,
+    }));
 
-  return { statistics, quotaUsed: 1 };
+    const missingVideoIds = computeMissingVideoIds(
+      videoIds,
+      statistics.map((entry) => entry.videoId),
+    );
+
+    return { statistics, missingVideoIds, quotaUsed: 1 };
+  } catch (error) {
+    throw classifyYouTubeFetchError(error);
+  }
 }
 
 const MAX_CHANNEL_IDS_PER_REQUEST = 50;

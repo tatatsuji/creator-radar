@@ -1,4 +1,8 @@
 import {
+  selectWebsubCanaryChannels,
+  type WebsubCanaryWatchlistCandidate,
+} from "@/lib/websub/websubCanaryPolicy";
+import {
   postWebsubHubRequest,
   type PostWebsubHubRequestResult,
 } from "@/lib/websub/websubHubClient";
@@ -7,11 +11,13 @@ import {
   isWebsubEnabled,
   WEBSUB_CONFIG,
 } from "@/lib/websub/websubConfig";
+import { WEBSUB_CANARY_MAX_CHANNELS } from "@/lib/websub/websubOperationsConfig";
 import {
   createWebsubSubscriptionForChannel,
   deriveWebsubSubscriptionHealth,
   listLiveWebsubSubscriptions,
   listWatchlistChannelIdsEligibleForWebsub,
+  listWatchlistChannelsForWebsub,
   listWebsubSubscriptionsForReconcile,
   markWebsubSubscribePostFailure,
   markWebsubSubscribePostSuccess,
@@ -29,6 +35,13 @@ export type WebsubSubscribeManagerOperation =
   | "renew_daily"
   | "reconcile";
 
+export interface WebsubSubscribeManagerCanaryResult {
+  maxChannels: number;
+  eligibleCount: number;
+  selectedCount: number;
+  skippedByCapCount: number;
+}
+
 export interface WebsubSubscribeManagerResult {
   status: "executed" | "skipped";
   operation: WebsubSubscribeManagerOperation;
@@ -40,12 +53,14 @@ export interface WebsubSubscribeManagerResult {
   orphaned: number;
   dead: number;
   resubscribed: number;
+  canary?: WebsubSubscribeManagerCanaryResult;
 }
 
 export interface WebsubSubscribeManagerDeps {
   isEnabled: () => boolean;
   isSupabaseReady: () => boolean;
   listWatchlistChannelIds: () => Promise<string[]>;
+  listWatchlistChannels: () => Promise<WebsubCanaryWatchlistCandidate[]>;
   listLiveSubscriptions: () => Promise<WebsubSubscriptionRecord[]>;
   listReconcileSubscriptions: () => Promise<WebsubSubscriptionRecord[]>;
   createSubscription: (youtubeChannelId: string) => Promise<WebsubSubscriptionRecord>;
@@ -79,6 +94,7 @@ export interface WebsubSubscribeManagerDeps {
     maxSubscribeAttempts: number;
     urgentRenewWithinMs: number;
     dailyRenewWithinMs: number;
+    canaryMaxChannels: number;
   };
 }
 
@@ -86,6 +102,7 @@ const defaultDeps: WebsubSubscribeManagerDeps = {
   isEnabled: isWebsubEnabled,
   isSupabaseReady: isSupabaseConfigured,
   listWatchlistChannelIds: listWatchlistChannelIdsEligibleForWebsub,
+  listWatchlistChannels: listWatchlistChannelsForWebsub,
   listLiveSubscriptions: listLiveWebsubSubscriptions,
   listReconcileSubscriptions: listWebsubSubscriptionsForReconcile,
   createSubscription: createWebsubSubscriptionForChannel,
@@ -120,6 +137,7 @@ const defaultDeps: WebsubSubscribeManagerDeps = {
     maxSubscribeAttempts: WEBSUB_CONFIG.maxSubscribeAttempts,
     urgentRenewWithinMs: WEBSUB_CONFIG.urgentRenewWithinMs,
     dailyRenewWithinMs: WEBSUB_CONFIG.dailyRenewWithinMs,
+    canaryMaxChannels: WEBSUB_CANARY_MAX_CHANNELS,
   },
 };
 
@@ -254,10 +272,23 @@ export async function runWebsubSubscribeNew(
 
   resolvedDeps.getCallbackUrl();
 
-  const [watchlistChannelIds, liveSubscriptions] = await Promise.all([
-    resolvedDeps.listWatchlistChannelIds(),
+  const [watchlistChannels, liveSubscriptions] = await Promise.all([
+    resolvedDeps.listWatchlistChannels(),
     resolvedDeps.listLiveSubscriptions(),
   ]);
+
+  const canarySelection = selectWebsubCanaryChannels(
+    watchlistChannels,
+    resolvedDeps.config.canaryMaxChannels,
+  );
+  result.canary = {
+    maxChannels: canarySelection.maxChannels,
+    eligibleCount: canarySelection.eligibleCount,
+    selectedCount: canarySelection.selectedChannelIds.length,
+    skippedByCapCount: canarySelection.skippedByCapCount,
+  };
+
+  const watchlistChannelIds = canarySelection.selectedChannelIds;
 
   const liveByChannelId = new Map(
     liveSubscriptions.map((subscription) => [

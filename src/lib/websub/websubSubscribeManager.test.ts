@@ -48,6 +48,9 @@ function createDeps(
     isEnabled: vi.fn(() => true),
     isSupabaseReady: vi.fn(() => true),
     listWatchlistChannelIds: vi.fn(async () => [CHANNEL_ID]),
+    listWatchlistChannels: vi.fn(async () => [
+      { channelId: CHANNEL_ID, watchTier: "hot" as const },
+    ]),
     listLiveSubscriptions: vi.fn(async () => []),
     listReconcileSubscriptions: vi.fn(async () => []),
     createSubscription: vi.fn(async (youtubeChannelId: string) =>
@@ -79,6 +82,7 @@ function createDeps(
       maxSubscribeAttempts: 5,
       urgentRenewWithinMs: 72 * HOUR_MS,
       dailyRenewWithinMs: 7 * DAY_MS,
+      canaryMaxChannels: 0,
     },
     ...overrides,
   };
@@ -147,6 +151,44 @@ describe("runWebsubSubscribeNew", () => {
       failedAt: NOW,
     });
     expect(result.failed).toBe(1);
+  });
+
+  it("applies canary cap to subscribe-new only selecting hot-first channels", async () => {
+    const channels = [
+      { channelId: "UCcold-2", watchTier: "cold" as const },
+      { channelId: "UChot-2", watchTier: "hot" as const },
+      { channelId: "UCnormal-1", watchTier: "normal" as const },
+      { channelId: "UChot-1", watchTier: "hot" as const },
+    ];
+    const deps = createDeps({
+      listWatchlistChannels: vi.fn(async () => channels),
+      listLiveSubscriptions: vi.fn(async () => []),
+      config: {
+        subscribeBatchLimit: 200,
+        subscribeConcurrency: 10,
+        leaseRequestSeconds: 604800,
+        hubSecret: "secret",
+        pendingVerifyStaleMs: 48 * HOUR_MS,
+        maxSubscribeAttempts: 5,
+        urgentRenewWithinMs: 72 * HOUR_MS,
+        dailyRenewWithinMs: 7 * DAY_MS,
+        canaryMaxChannels: 2,
+      },
+    });
+
+    const result = await runWebsubSubscribeNew(deps);
+
+    expect(result.canary).toEqual({
+      maxChannels: 2,
+      eligibleCount: 4,
+      selectedCount: 2,
+      skippedByCapCount: 2,
+    });
+    expect(deps.createSubscription).toHaveBeenCalledTimes(2);
+    expect(deps.createSubscription).toHaveBeenCalledWith("UChot-1");
+    expect(deps.createSubscription).toHaveBeenCalledWith("UChot-2");
+    expect(deps.createSubscription).not.toHaveBeenCalledWith("UCnormal-1");
+    expect(deps.createSubscription).not.toHaveBeenCalledWith("UCcold-2");
   });
 });
 

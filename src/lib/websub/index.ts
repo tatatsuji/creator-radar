@@ -7,9 +7,16 @@ export {
   type ParsedWebsubAtomEntry,
 } from "@/lib/websub/websubAtomParser";
 export {
+  selectWebsubCanaryChannels,
+  isChannelInWebsubCanarySelection,
+  type WebsubCanaryWatchlistCandidate,
+  type SelectWebsubCanaryChannelsResult,
+} from "@/lib/websub/websubCanaryPolicy";
+export {
   applyWebsubHubVerification,
   findWebsubSubscriptionByTopic,
   getWebsubSubscriptionByChannelId,
+  listWatchlistChannelsForWebsub,
   type WebsubSubscriptionRow,
   type WebsubSubscriptionRecord,
 } from "@/lib/websub/websubSubscriptionRepository";
@@ -29,6 +36,7 @@ export {
   markWebsubSubscriptionAsDeadForChannel,
   type WebsubSubscribeManagerDeps,
   type WebsubSubscribeManagerResult,
+  type WebsubSubscribeManagerCanaryResult,
 } from "@/lib/websub/websubSubscribeManager";
 export {
   runWebsubSubscribeNewCron,

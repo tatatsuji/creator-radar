@@ -1,4 +1,6 @@
+import { classifyYouTubeVideoItem } from "@/lib/discovery/videoClassification";
 import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
+import type { RankingContentFormat } from "@/lib/ranking/rankingContentFormat";
 import {
   buildVideoMetrics,
   finalizeRankedVideos,
@@ -30,6 +32,16 @@ import type {
 const MAX_RESULTS = 50;
 const MIN_RESULTS_BEFORE_SUPPLEMENT = 20;
 
+function filterYouTubeItemsByRankingContentFormat(
+  items: YouTubeVideoItem[],
+  contentFormat: RankingContentFormat,
+): YouTubeVideoItem[] {
+  return items.filter((item) => {
+    const { contentKind } = classifyYouTubeVideoItem(item);
+    return contentKind === contentFormat;
+  });
+}
+
 function mapVideoItem(
   item: YouTubeVideoItem,
   channel: YouTubeChannelItem | undefined,
@@ -43,6 +55,7 @@ function mapVideoItem(
     : parseCount(channel?.statistics?.subscriberCount);
   const channelName = channel?.snippet.title ?? item.snippet.channelTitle;
   const durationSeconds = parseIsoDurationSeconds(item.contentDetails?.duration);
+  const classification = classifyYouTubeVideoItem(item);
 
   const metrics = buildVideoMetrics(
     period,
@@ -69,6 +82,7 @@ function mapVideoItem(
     viewCount,
     metrics,
     durationSeconds: durationSeconds > 0 ? durationSeconds : undefined,
+    contentKind: classification.contentKind,
   };
 }
 
@@ -368,9 +382,14 @@ export async function getCollectTargetVideoItems(): Promise<YouTubeVideoItem[]> 
 export async function getRankingCandidates(
   period: RankingPeriod,
   genre: GenreId,
+  contentFormat: RankingContentFormat = "regular",
 ): Promise<Video[]> {
   const videoItems = await getVideoItemsForPeriod(period, genre);
-  return mapRankingCandidates(videoItems, period);
+  const filteredItems = filterYouTubeItemsByRankingContentFormat(
+    videoItems,
+    contentFormat,
+  );
+  return mapRankingCandidates(filteredItems, period);
 }
 
 export async function getRankings(

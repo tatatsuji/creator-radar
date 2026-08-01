@@ -1,4 +1,5 @@
 import { getRankingCandidates } from "@/lib/youtube/rankings";
+import type { RankingContentFormat } from "@/lib/ranking/rankingContentFormat";
 import type { GenreId, RankingPeriod, Video } from "@/types";
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -17,8 +18,12 @@ let dailyFetchState = {
   count: 0,
 };
 
-function getCacheKey(period: RankingPeriod, genre: GenreId): string {
-  return `${period}:${genre}`;
+function getCacheKey(
+  period: RankingPeriod,
+  genre: GenreId,
+  contentFormat: RankingContentFormat,
+): string {
+  return `${period}:${genre}:${contentFormat}`;
 }
 
 function getTodayKey(now = new Date()): string {
@@ -43,8 +48,9 @@ export function estimateBuzzFallbackQuotaUnits(): number {
 export async function getBuzzRankingFallbackCandidates(
   period: RankingPeriod,
   genre: GenreId,
+  contentFormat: RankingContentFormat = "regular",
 ): Promise<Video[]> {
-  const cacheKey = getCacheKey(period, genre);
+  const cacheKey = getCacheKey(period, genre, contentFormat);
   const nowMs = Date.now();
 
   if (cacheEntry && cacheEntry.key === cacheKey && nowMs < cacheEntry.expiresAt) {
@@ -66,7 +72,8 @@ export async function getBuzzRankingFallbackCandidates(
 
   inflightFetch = (async () => {
     try {
-      const videos = await getRankingCandidates(period, genre);
+      const fallbackGenre = contentFormat === "short" ? "shorts" : genre;
+      const videos = await getRankingCandidates(period, fallbackGenre, contentFormat);
       dailyFetchState.count += 1;
       cacheEntry = {
         key: cacheKey,

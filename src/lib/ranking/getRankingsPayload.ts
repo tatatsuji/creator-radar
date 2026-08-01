@@ -1,3 +1,4 @@
+import type { ContentFormatFilter } from "@/lib/home/contentFormat";
 import { buildRankings } from "@/lib/ranking/buildRankings";
 import { resolveLatestSnapshotCapturedAt } from "@/lib/ranking/snapshotMetrics";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
@@ -18,8 +19,9 @@ export async function getRankingsPayload(
   ranking: RankingType,
   period: RankingPeriod,
   genre: GenreId,
+  format: ContentFormatFilter = "all",
 ): Promise<RankingsPayload> {
-  const built = await buildRankings(ranking, period, genre);
+  const built = await buildRankings(ranking, period, genre, format);
   let dataFreshnessAt: string | null = null;
 
   if (isSupabaseConfigured() && built.videos.length > 0) {

@@ -4,6 +4,10 @@ import {
   type PromotionMetrics,
 } from "@/lib/promotion/metrics";
 import { matchesVideoGenre } from "@/lib/ranking/genreFilter";
+import {
+  matchesRankingContentFormat,
+  type RankingContentFormat,
+} from "@/lib/ranking/rankingContentFormat";
 import { getBuzzCandidatePoolSize } from "@/lib/ranking/buzzRankingQuality";
 import { getPublishedAfter } from "@/lib/ranking/periods";
 import { fetchSnapshotsForVideos } from "@/lib/snapshots/repository";
@@ -138,9 +142,30 @@ export function mapVideoRowToVideo(
   };
 }
 
+function matchesRankingCandidateRow(
+  row: VideoRow,
+  genre: GenreId,
+  contentFormat: RankingContentFormat,
+): boolean {
+  return (
+    matchesVideoGenre({
+      categoryId: row.category_id,
+      isShort: row.is_short,
+      genre,
+    }) &&
+    matchesRankingContentFormat({
+      isShort: row.is_short,
+      isLive: row.is_live,
+      durationSeconds: row.duration_seconds,
+      contentFormat,
+    })
+  );
+}
+
 export async function getBuzzRankingCandidatesFromDb(
   period: RankingPeriod,
   genre: GenreId,
+  contentFormat: RankingContentFormat = "regular",
 ): Promise<Video[]> {
   if (!isSupabaseConfigured()) {
     return [];
@@ -171,13 +196,7 @@ export async function getBuzzRankingCandidatesFromDb(
   );
 
   return rows
-    .filter((row) =>
-      matchesVideoGenre({
-        categoryId: row.category_id,
-        isShort: row.is_short,
-        genre,
-      }),
-    )
+    .filter((row) => matchesRankingCandidateRow(row, genre, contentFormat))
     .map((row) =>
       mapVideoRowToVideo(
         row,
@@ -190,6 +209,7 @@ export async function getBuzzRankingCandidatesFromDb(
 export async function getMeasuredRankingCandidates(
   period: RankingPeriod,
   genre: GenreId,
+  contentFormat: RankingContentFormat = "regular",
 ): Promise<Video[]> {
   if (!isSupabaseConfigured()) {
     return [];
@@ -230,11 +250,7 @@ export async function getMeasuredRankingCandidates(
 
   return (videoRows ?? [])
     .filter((row) =>
-      matchesVideoGenre({
-        categoryId: row.category_id,
-        isShort: row.is_short,
-        genre,
-      }),
+      matchesRankingCandidateRow(row as VideoRow, genre, contentFormat),
     )
     .map((row) =>
       mapVideoRowToVideo(

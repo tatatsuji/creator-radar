@@ -10,6 +10,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { RankingPanel } from "@/components/rankings/RankingPanel";
 import {
   buildHomeSearchParams,
+  DEFAULT_HOME_URL_STATE,
   parseHomeUrlState,
   type HomeUrlState,
 } from "@/lib/home/urlState";
@@ -21,6 +22,7 @@ interface RankingDashboardProps {
   initialVideos: Video[];
   initialPeriod?: RankingPeriod;
   initialGenre?: GenreId;
+  initialFormat?: HomeUrlState["format"];
   initialUpdatedAt?: string;
   initialDataFreshnessAt?: string | null;
   initialReadiness?: RankingReadiness;
@@ -33,6 +35,7 @@ export function RankingDashboard({
   initialVideos,
   initialPeriod = "24h",
   initialGenre = "all",
+  initialFormat = DEFAULT_HOME_URL_STATE.format,
   initialUpdatedAt,
   initialDataFreshnessAt = null,
   initialReadiness = {
@@ -78,7 +81,8 @@ export function RankingDashboard({
   const useInitialPayload =
     urlState.ranking === initialRanking &&
     urlState.period === initialPeriod &&
-    urlState.genre === initialGenre;
+    urlState.genre === initialGenre &&
+    urlState.format === initialFormat;
 
   return (
     <div className="app-background flex min-h-screen flex-col">

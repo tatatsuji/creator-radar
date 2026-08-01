@@ -14,6 +14,8 @@ import {
   getMeasuredRankingCandidates,
   type SnapshotEnrichedVideo,
 } from "@/lib/ranking/snapshotRankingBase";
+import { resolveRankingContentFormat, filterVideosByRankingContentFormat } from "@/lib/ranking/rankingContentFormat";
+import type { ContentFormatFilter } from "@/lib/home/contentFormat";
 import type { GenreId, RankingPeriod, Video } from "@/types";
 import {
   MIN_MEASURED_VIDEOS_FOR_SNAPSHOT_RANKING,
@@ -85,18 +87,32 @@ export async function buildRankings(
   ranking: RankingType,
   period: RankingPeriod,
   genre: GenreId,
+  format: ContentFormatFilter = "all",
 ): Promise<BuiltRankingsResult> {
+  const contentFormat = resolveRankingContentFormat({ genre, format });
+
   if (ranking === "buzz") {
-    const dbCandidates = await getBuzzRankingCandidatesFromDb(period, genre);
+    const dbCandidates = await getBuzzRankingCandidatesFromDb(
+      period,
+      genre,
+      contentFormat,
+    );
     let usedYouTubeFallback = false;
     let candidates = dbCandidates;
 
     if (candidates.length === 0) {
       usedYouTubeFallback = true;
-      candidates = await getBuzzRankingFallbackCandidates(period, genre);
+      candidates = await getBuzzRankingFallbackCandidates(
+        period,
+        genre,
+        contentFormat,
+      );
     }
 
-    const videos = await buildBuzzRankingVideos(candidates, period);
+    const videos = filterVideosByRankingContentFormat(
+      await buildBuzzRankingVideos(candidates, period),
+      contentFormat,
+    );
     return {
       ranking,
       videos,
@@ -106,7 +122,11 @@ export async function buildRankings(
     };
   }
 
-  const candidates = await getMeasuredRankingCandidates(period, genre);
+  const candidates = await getMeasuredRankingCandidates(
+    period,
+    genre,
+    contentFormat,
+  );
   const enriched = await enrichVideosWithSnapshots(candidates);
   const readiness = assessReadiness(ranking, enriched, candidates.length);
 
@@ -137,6 +157,8 @@ export async function buildRankings(
     default:
       videos = [];
   }
+
+  videos = filterVideosByRankingContentFormat(videos, contentFormat);
 
   return {
     ranking,

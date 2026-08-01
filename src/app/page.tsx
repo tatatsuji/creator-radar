@@ -16,6 +16,7 @@ interface HomeProps {
     mode?: string;
     period?: string;
     genre?: string;
+    format?: string;
   }>;
 }
 
@@ -50,6 +51,7 @@ export default async function Home({ searchParams }: HomeProps) {
       urlState.ranking,
       urlState.period,
       urlState.genre,
+      urlState.format,
     );
     initialVideos = payload.videos;
     initialUpdatedAt = payload.updatedAt;
@@ -66,6 +68,7 @@ export default async function Home({ searchParams }: HomeProps) {
         initialVideos={initialVideos}
         initialPeriod={urlState.period}
         initialGenre={urlState.genre}
+        initialFormat={urlState.format}
         initialUpdatedAt={initialUpdatedAt}
         initialDataFreshnessAt={initialDataFreshnessAt}
         initialReadiness={initialReadiness}

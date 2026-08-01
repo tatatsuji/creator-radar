@@ -8,7 +8,11 @@ import { ContentFilterBanner } from "@/components/rankings/ContentFilterBanner";
 import { VideoCard } from "@/components/rankings/VideoCard";
 import { RankingCardSkeleton, StatePanel } from "@/components/ui/StatePanel";
 import { formatRankingUpdatedAt } from "@/lib/format";
-import { matchesContentFormatFilter, type ContentFormatFilter } from "@/lib/home/contentFormat";
+import type { ContentFormatFilter } from "@/lib/home/contentFormat";
+import {
+  matchesVideoRankingContentFormat,
+  resolveRankingContentFormat,
+} from "@/lib/ranking/rankingContentFormat";
 import type { HomeUrlState } from "@/lib/home/urlState";
 import {
   BUZZ_INITIAL_DISPLAY_COUNT,
@@ -87,7 +91,8 @@ export function RankingPanel({
       Boolean(initialError)) &&
       ranking === homeUrlState.ranking &&
       period === initialPeriod &&
-      genre === initialGenre,
+      genre === initialGenre &&
+      format === homeUrlState.format,
   );
 
   const isSearching = searchQuery.trim().length > 0;
@@ -113,7 +118,7 @@ export function RankingPanel({
 
       try {
         const response = await fetch(
-          `/api/rankings?ranking=${ranking}&period=${period}&genre=${genre}`,
+          `/api/rankings?ranking=${ranking}&period=${period}&genre=${genre}&format=${format}`,
           { signal: controller.signal },
         );
         const data = (await response.json()) as {
@@ -166,13 +171,14 @@ export function RankingPanel({
     void loadRankings();
 
     return () => controller.abort();
-  }, [active, genre, onGenreChange, period, ranking]);
+  }, [active, format, genre, homeUrlState.format, onGenreChange, period, ranking]);
 
   const filteredVideos = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
+    const contentFormat = resolveRankingContentFormat({ genre, format });
 
     return videos.filter((video) => {
-      if (!matchesContentFormatFilter(video.contentKind, format)) {
+      if (!matchesVideoRankingContentFormat(video, contentFormat)) {
         return false;
       }
 
@@ -185,7 +191,7 @@ export function RankingPanel({
         video.channel.name.toLowerCase().includes(normalizedQuery)
       );
     });
-  }, [videos, searchQuery, format]);
+  }, [videos, searchQuery, genre, format]);
 
   const visibleVideos = useMemo(() => {
     if (ranking !== "buzz" || showAllBuzz || isSearching) {

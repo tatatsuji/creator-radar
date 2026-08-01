@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { parseRankingType } from "@/lib/home/rankingType";
+import { parseContentFormatFilter } from "@/lib/home/contentFormat";
 import { getRankingsPayload } from "@/lib/ranking/getRankingsPayload";
 import { parseRankingPeriod } from "@/lib/ranking/periods";
 import {
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
   );
   const period = parseRankingPeriod(searchParams.get("period"));
   const genre = parseGenre(searchParams.get("genre"));
+  const format = parseContentFormatFilter(searchParams.get("format"));
   const availableGenres = await getAvailableGenreIds();
 
   if (genre !== "all" && !availableGenres.includes(genre)) {
@@ -60,12 +62,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const payload = await getRankingsPayload(ranking, period, genre);
+    const payload = await getRankingsPayload(ranking, period, genre, format);
 
     return NextResponse.json({
       ranking: payload.ranking,
       period,
       genre,
+      format,
       videos: payload.videos,
       availableGenres,
       updatedAt: payload.updatedAt,

@@ -1,5 +1,6 @@
 import { youtubeFetch } from "@/lib/youtube/client";
 import type { YouTubeVideoItem, YouTubeVideosResponse } from "@/lib/youtube/types";
+import { YOUTUBE_VIDEO_DETAILS_PARTS } from "@/lib/youtube/videoDetailsParts";
 
 export async function fetchWebsubVideoDetailsBatch(
   videoIds: string[],
@@ -11,7 +12,7 @@ export async function fetchWebsubVideoDetailsBatch(
   const response = await youtubeFetch<YouTubeVideosResponse>(
     "videos",
     {
-      part: "snippet,statistics,contentDetails",
+      part: YOUTUBE_VIDEO_DETAILS_PARTS,
       id: videoIds.join(","),
     },
     0,

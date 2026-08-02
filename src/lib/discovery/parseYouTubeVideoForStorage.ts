@@ -27,10 +27,10 @@ export function buildVideoUpsertFromYouTubeItem(input: {
   item: YouTubeVideoItem;
   channel?: YouTubeChannelItem;
   lastSeenAt: string;
-  classificationOverride?: { forceLive?: boolean; forceShort?: boolean };
+  verticalConfirmed?: boolean | null;
 }): UpsertVideoInput {
-  const { item, channel, lastSeenAt, classificationOverride } = input;
-  const classification = classifyYouTubeVideoItem(item, classificationOverride);
+  const { item, channel, lastSeenAt, verticalConfirmed } = input;
+  const classification = classifyYouTubeVideoItem(item, { verticalConfirmed });
   const tags = item.snippet.tags ?? [];
   const contentFeatures = computeVideoContentFeatures({
     title: item.snippet.title,
@@ -39,6 +39,7 @@ export function buildVideoUpsertFromYouTubeItem(input: {
     durationSeconds: classification.durationSeconds,
     tags,
   });
+  const checkedAt = new Date().toISOString();
 
   return {
     youtubeVideoId: item.id,
@@ -53,6 +54,15 @@ export function buildVideoUpsertFromYouTubeItem(input: {
     durationSeconds: classification.durationSeconds,
     isShort: classification.isShort,
     isLive: classification.isLive,
+    videoFormat: classification.videoFormat,
+    liveState: classification.liveState,
+    liveBroadcastContent: classification.liveBroadcastContent,
+    liveScheduledStartAt: classification.liveScheduledStartAt,
+    liveActualStartAt: classification.liveActualStartAt,
+    liveActualEndAt: classification.liveActualEndAt,
+    liveMetadataFetchStatus: classification.liveMetadataFetchStatus,
+    liveMetadataCheckedAt: checkedAt,
+    formatSignals: classification.formatSignals,
     isTopicContent: classification.isTopicContent,
     viewCount: parseCount(item.statistics?.viewCount),
     likeCount: parseCount(item.statistics?.likeCount) || null,

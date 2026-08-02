@@ -40,6 +40,11 @@ export interface YouTubeVideoItem {
   contentDetails?: {
     duration?: string;
   };
+  liveStreamingDetails?: {
+    scheduledStartTime?: string;
+    actualStartTime?: string;
+    actualEndTime?: string;
+  };
 }
 
 export interface YouTubeVideosResponse {

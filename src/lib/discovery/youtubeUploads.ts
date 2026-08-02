@@ -4,6 +4,7 @@ import {
   saveUploadsPlaylistId,
 } from "@/lib/channels/uploadsPlaylistRepository";
 import { youtubeFetch } from "@/lib/youtube/client";
+import { YOUTUBE_VIDEO_DETAILS_PARTS } from "@/lib/youtube/videoDetailsParts";
 import type { YouTubeVideoItem, YouTubeVideosResponse } from "@/lib/youtube/types";
 
 export interface ChannelUploadPlaylist {
@@ -140,7 +141,7 @@ async function fetchUploadVideoItems(
   const response = await youtubeFetch<YouTubeVideosResponse>(
     "videos",
     {
-      part: "snippet,statistics,contentDetails",
+      part: YOUTUBE_VIDEO_DETAILS_PARTS,
       id: videoIds.join(","),
     },
     0,

@@ -8,7 +8,7 @@ function makeItem(overrides: Partial<YouTubeVideoItem> = {}): YouTubeVideoItem {
   return {
     id: "video1234567",
     snippet: {
-      title: "なぜこれは伸びる？2026",
+      title: "なぜこれは伸びる？ #shorts 2026",
       description: "テスト説明",
       publishedAt: "2026-07-26T15:00:00.000Z",
       channelId: "UC1234567890abcdefghij",

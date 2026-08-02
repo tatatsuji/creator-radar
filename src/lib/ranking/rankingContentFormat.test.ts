@@ -70,25 +70,21 @@ describe("resolveRankingContentFormat", () => {
 });
 
 describe("isRankingShortVideo", () => {
-  it("detects shorts from is_short flag", () => {
-    expect(isRankingShortVideo({ isShort: true, isLive: false })).toBe(true);
-  });
-
-  it("detects shorts from duration when is_short is null", () => {
+  it("detects shorts from video_format", () => {
     expect(
-      isRankingShortVideo({ isShort: null, isLive: false, durationSeconds: 45 }),
+      isRankingShortVideo({ videoFormat: "short", liveState: "none" }),
     ).toBe(true);
   });
 
   it("does not treat live streams as shorts", () => {
     expect(
-      isRankingShortVideo({ isShort: null, isLive: true, durationSeconds: 0 }),
+      isRankingShortVideo({ videoFormat: "unknown", liveState: "active" }),
     ).toBe(false);
   });
 
-  it("respects explicit is_short=false even for short duration", () => {
+  it("does not treat unknown format as shorts", () => {
     expect(
-      isRankingShortVideo({ isShort: false, isLive: false, durationSeconds: 30 }),
+      isRankingShortVideo({ videoFormat: "unknown", liveState: "none" }),
     ).toBe(false);
   });
 });
@@ -97,32 +93,54 @@ describe("matchesRankingContentFormat", () => {
   it("excludes shorts and live from regular rankings", () => {
     expect(
       matchesRankingContentFormat({
-        isShort: true,
-        isLive: false,
+        videoFormat: "short",
+        liveState: "none",
         contentFormat: "regular",
       }),
     ).toBe(false);
     expect(
       matchesRankingContentFormat({
-        isShort: false,
-        isLive: true,
+        videoFormat: "regular",
+        liveState: "active",
         contentFormat: "regular",
       }),
     ).toBe(false);
     expect(
       matchesRankingContentFormat({
-        isShort: null,
-        isLive: false,
-        durationSeconds: 30,
+        videoFormat: "unknown",
+        liveState: "none",
         contentFormat: "regular",
       }),
     ).toBe(false);
     expect(
       matchesRankingContentFormat({
-        isShort: false,
-        isLive: false,
-        durationSeconds: 120,
+        videoFormat: "regular",
+        liveState: "none",
         contentFormat: "regular",
+      }),
+    ).toBe(true);
+  });
+
+  it("excludes upcoming and ended live from all pools except active live pool", () => {
+    expect(
+      matchesRankingContentFormat({
+        videoFormat: "regular",
+        liveState: "upcoming",
+        contentFormat: "regular",
+      }),
+    ).toBe(false);
+    expect(
+      matchesRankingContentFormat({
+        videoFormat: "regular",
+        liveState: "ended",
+        contentFormat: "live",
+      }),
+    ).toBe(false);
+    expect(
+      matchesRankingContentFormat({
+        videoFormat: "unknown",
+        liveState: "active",
+        contentFormat: "live",
       }),
     ).toBe(true);
   });
@@ -134,7 +152,7 @@ describe("filterVideosByRankingContentFormat", () => {
     makeVideo({ id: "short-flag", contentKind: "short", durationSeconds: 30 }),
     makeVideo({ id: "live", contentKind: "live", durationSeconds: 0 }),
     makeVideo({
-      id: "misclassified-short",
+      id: "unknown-short",
       contentKind: "unknown",
       durationSeconds: 42,
     }),
@@ -147,12 +165,12 @@ describe("filterVideosByRankingContentFormat", () => {
     expect(countRankingLive(result)).toBe(0);
   });
 
-  it("shows only shorts in shorts ranking", () => {
+  it("shows only confirmed shorts in shorts ranking", () => {
     const result = filterVideosByRankingContentFormat(mixed, "short");
     expect(
       result.every((video) => matchesVideoRankingContentFormat(video, "short")),
     ).toBe(true);
-    expect(result.map((video) => video.id)).toEqual(["short-flag", "misclassified-short"]);
+    expect(result.map((video) => video.id)).toEqual(["short-flag"]);
   });
 
   it("shows only live videos in live ranking", () => {

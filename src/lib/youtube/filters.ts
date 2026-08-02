@@ -1,5 +1,5 @@
+import { classifyYouTubeVideoItem } from "@/lib/discovery/videoClassification";
 import { getYouTubeCategoryId, KNOWN_CATEGORY_IDS } from "@/lib/youtube/categories";
-import { isShortFormVideo, parseIsoDurationSeconds } from "@/lib/youtube/duration";
 import type { YouTubeVideoItem } from "@/lib/youtube/types";
 import type { GenreId } from "@/types";
 
@@ -7,11 +7,16 @@ export function isTopicChannelName(channelName: string): boolean {
   return / - Topic$/i.test(channelName) || /^Release - Topic$/i.test(channelName);
 }
 
-export function filterShortFormVideos(items: YouTubeVideoItem[]): YouTubeVideoItem[] {
+export function filterRegularFormVideos(items: YouTubeVideoItem[]): YouTubeVideoItem[] {
   return items.filter((item) => {
-    const durationSeconds = parseIsoDurationSeconds(item.contentDetails?.duration);
-    return !isShortFormVideo(durationSeconds);
+    const { videoFormat, liveState } = classifyYouTubeVideoItem(item);
+    return videoFormat === "regular" && liveState === "none";
   });
+}
+
+/** @deprecated use filterRegularFormVideos */
+export function filterShortFormVideos(items: YouTubeVideoItem[]): YouTubeVideoItem[] {
+  return filterRegularFormVideos(items);
 }
 
 export function filterByGenreCategory(
@@ -24,8 +29,8 @@ export function filterByGenreCategory(
 
   if (genre === "shorts") {
     return items.filter((item) => {
-      const durationSeconds = parseIsoDurationSeconds(item.contentDetails?.duration);
-      return isShortFormVideo(durationSeconds);
+      const { videoFormat, liveState } = classifyYouTubeVideoItem(item);
+      return videoFormat === "short" && liveState === "none";
     });
   }
 

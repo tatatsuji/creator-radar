@@ -10,6 +10,7 @@ import {
   getYouTubeCategoryId,
 } from "@/lib/youtube/categories";
 import { youtubeFetch } from "@/lib/youtube/client";
+import { YOUTUBE_VIDEO_DETAILS_PARTS } from "@/lib/youtube/videoDetailsParts";
 import { isChartNotFoundError } from "@/lib/youtube/errors";
 import { mergeVideoItems } from "@/lib/youtube/filters";
 import { parseCount } from "@/lib/youtube/helpers";
@@ -33,7 +34,7 @@ async function evalFetchVideoDetails(
   for (let index = 0; index < videoIds.length; index += 50) {
     const batch = videoIds.slice(index, index + 50);
     const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
-      part: "snippet,statistics,contentDetails",
+      part: YOUTUBE_VIDEO_DETAILS_PARTS,
       id: batch.join(","),
       maxResults: String(Math.min(batch.length, 50)),
     });
@@ -81,7 +82,7 @@ export async function evalFetchMostPopular(
   }
 
   const params: Record<string, string> = {
-    part: "snippet,statistics,contentDetails",
+    part: YOUTUBE_VIDEO_DETAILS_PARTS,
     chart: "mostPopular",
     regionCode: EVAL_REGION,
     maxResults: String(maxResults),

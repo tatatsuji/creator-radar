@@ -33,7 +33,6 @@ export interface BuzzRegistrationContext {
   sourceKey?: string;
   limit?: number;
   registrationPath?: string;
-  classificationOverride?: { forceLive?: boolean; forceShort?: boolean };
 }
 
 export interface BuzzCandidateRegistrationDeps {
@@ -140,15 +139,6 @@ export async function registerBuzzCandidatesFromYouTubeItems(
   result.candidatesSkipped = items.length - registerable.length;
   const now = new Date().toISOString();
 
-  const classificationOverride =
-    context.classificationOverride ??
-    (context.sourceType === "shorts_search" ||
-    context.sourceType === "short_form_candidate"
-      ? { forceShort: true }
-      : context.sourceType === "live_search"
-        ? { forceLive: true }
-        : undefined);
-
   for (const item of registerable) {
     try {
       const channel = channels.get(item.snippet.channelId);
@@ -156,7 +146,6 @@ export async function registerBuzzCandidatesFromYouTubeItems(
         item,
         channel,
         lastSeenAt: now,
-        classificationOverride,
       });
       const wasExisting = existingVideoIds.has(item.id);
 
@@ -170,10 +159,13 @@ export async function registerBuzzCandidatesFromYouTubeItems(
         sourceType,
         sourceKey,
         genreHint: context.genre,
-        formatHint: inferFormatHintFromVideo({
-          isShort: videoUpsert.isShort,
-          isLive: videoUpsert.isLive,
-        }),
+        formatHint: videoUpsert.videoFormat === "short"
+          ? "short"
+          : videoUpsert.videoFormat === "regular"
+            ? "regular"
+            : videoUpsert.liveState === "active"
+              ? "live"
+              : "unknown",
         metadata: {
           period: context.period,
           genre: context.genre,

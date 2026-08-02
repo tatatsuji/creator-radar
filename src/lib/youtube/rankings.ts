@@ -1,6 +1,7 @@
 import { classifyYouTubeVideoItem } from "@/lib/discovery/videoClassification";
 import { OBSERVABILITY_CONFIG } from "@/lib/observability/config";
 import type { RankingContentFormat } from "@/lib/ranking/rankingContentFormat";
+import { matchesRankingContentFormat } from "@/lib/ranking/rankingContentFormat";
 import {
   buildVideoMetrics,
   finalizeRankedVideos,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/youtube/filters";
 import { parseIsoDurationSeconds } from "@/lib/youtube/duration";
 import { parseCount, pickVideoThumbnail } from "@/lib/youtube/helpers";
+import { YOUTUBE_VIDEO_DETAILS_PARTS } from "@/lib/youtube/videoDetailsParts";
 import type {
   YouTubeChannelItem,
   YouTubeChannelsResponse,
@@ -37,8 +39,12 @@ function filterYouTubeItemsByRankingContentFormat(
   contentFormat: RankingContentFormat,
 ): YouTubeVideoItem[] {
   return items.filter((item) => {
-    const { contentKind } = classifyYouTubeVideoItem(item);
-    return contentKind === contentFormat;
+    const { videoFormat, liveState } = classifyYouTubeVideoItem(item);
+    return matchesRankingContentFormat({
+      videoFormat,
+      liveState,
+      contentFormat,
+    });
   });
 }
 
@@ -158,7 +164,7 @@ async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideoItem[]
   for (let index = 0; index < videoIds.length; index += 50) {
     const batch = videoIds.slice(index, index + 50);
     const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
-      part: "snippet,statistics,contentDetails",
+      part: YOUTUBE_VIDEO_DETAILS_PARTS,
       id: batch.join(","),
       maxResults: String(Math.min(batch.length, 50)),
     });
@@ -176,7 +182,7 @@ async function fetchMostPopularVideos(
   }
 
   const params: Record<string, string> = {
-    part: "snippet,statistics,contentDetails",
+    part: YOUTUBE_VIDEO_DETAILS_PARTS,
     chart: "mostPopular",
     regionCode: "JP",
     maxResults: String(MAX_RESULTS),
@@ -405,7 +411,7 @@ export async function getVideoById(
   period: RankingPeriod = "24h",
 ): Promise<Video | null> {
   const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
-    part: "snippet,statistics,contentDetails",
+    part: YOUTUBE_VIDEO_DETAILS_PARTS,
     id,
     maxResults: "1",
   });

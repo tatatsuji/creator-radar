@@ -1,3 +1,6 @@
+import { resolveContentKindFromClassification } from "@/lib/discovery/videoFormatClassification";
+import { matchesRankingContentFormat } from "@/lib/ranking/rankingContentFormat";
+import type { VideoFormat, LiveState } from "@/lib/discovery/videoFormatClassification";
 import {
   getYouTubeCategoryId,
   KNOWN_CATEGORY_IDS,
@@ -6,7 +9,7 @@ import type { GenreId } from "@/types";
 
 export function matchesVideoGenre(input: {
   categoryId: string | null | undefined;
-  isShort?: boolean | null;
+  videoFormat?: VideoFormat | null;
   genre: GenreId;
 }): boolean {
   const { genre } = input;
@@ -17,7 +20,7 @@ export function matchesVideoGenre(input: {
   }
 
   if (genre === "shorts") {
-    return input.isShort === true;
+    return input.videoFormat === "short";
   }
 
   if (genre === "other") {
@@ -25,4 +28,11 @@ export function matchesVideoGenre(input: {
   }
 
   return categoryId === getYouTubeCategoryId(genre);
+}
+
+export function resolveRowContentKind(input: {
+  videoFormat?: VideoFormat | null;
+  liveState?: LiveState | null;
+}): "regular" | "short" | "live" | "unknown" {
+  return resolveContentKindFromClassification(input);
 }

@@ -3,7 +3,7 @@ import {
   computePromotionMetrics,
   type PromotionMetrics,
 } from "@/lib/promotion/metrics";
-import { matchesVideoGenre } from "@/lib/ranking/genreFilter";
+import { matchesVideoGenre, resolveRowContentKind } from "@/lib/ranking/genreFilter";
 import {
   matchesRankingContentFormat,
   type RankingContentFormat,
@@ -96,15 +96,13 @@ export function getPublishedAgeHours(publishedAt: string, referenceMs = Date.now
 }
 
 function resolveContentKind(row: VideoRow): Video["contentKind"] {
-  if (row.is_live === true) {
-    return "live";
+  if (row.video_format != null || row.live_state != null) {
+    return resolveRowContentKind({
+      videoFormat: row.video_format,
+      liveState: row.live_state,
+    });
   }
-  if (row.is_short === true) {
-    return "short";
-  }
-  if (row.is_live === false && row.is_short === false) {
-    return "regular";
-  }
+
   return "unknown";
 }
 
@@ -147,16 +145,22 @@ function matchesRankingCandidateRow(
   genre: GenreId,
   contentFormat: RankingContentFormat,
 ): boolean {
+  const videoFormat = row.video_format;
+  const liveState = row.live_state;
+
+  if (videoFormat == null || liveState == null) {
+    return false;
+  }
+
   return (
     matchesVideoGenre({
       categoryId: row.category_id,
-      isShort: row.is_short,
+      videoFormat,
       genre,
     }) &&
     matchesRankingContentFormat({
-      isShort: row.is_short,
-      isLive: row.is_live,
-      durationSeconds: row.duration_seconds,
+      videoFormat,
+      liveState,
       contentFormat,
     })
   );

@@ -1,5 +1,10 @@
-import { isShortFormVideo } from "@/lib/youtube/duration";
 import type { ContentFormatFilter } from "@/lib/home/contentFormat";
+import {
+  matchesVideoFormatRankingPool,
+  resolveContentKindFromClassification,
+  type LiveState,
+  type VideoFormat,
+} from "@/lib/discovery/videoFormatClassification";
 import type { GenreId, Video } from "@/types";
 
 /** Content pool used when building ranking candidate lists. */
@@ -20,56 +25,20 @@ export function resolveRankingContentFormat(input: {
   return "regular";
 }
 
-export function isRankingLiveVideo(input: {
-  isLive?: boolean | null;
-}): boolean {
-  return input.isLive === true;
-}
-
-export function isRankingShortVideo(input: {
-  isShort?: boolean | null;
-  isLive?: boolean | null;
-  durationSeconds?: number | null;
-}): boolean {
-  if (isRankingLiveVideo(input)) {
-    return false;
-  }
-
-  if (input.isShort === true) {
-    return true;
-  }
-
-  if (input.isShort === false) {
-    return false;
-  }
-
-  const durationSeconds = input.durationSeconds ?? 0;
-  return isShortFormVideo(durationSeconds);
-}
-
 export function matchesRankingContentFormat(input: {
-  isShort?: boolean | null;
-  isLive?: boolean | null;
-  durationSeconds?: number | null;
+  videoFormat?: VideoFormat | null;
+  liveState?: LiveState | null;
   contentFormat: RankingContentFormat;
 }): boolean {
-  const { contentFormat } = input;
-  const isLive = isRankingLiveVideo(input);
-  const isShort = isRankingShortVideo(input);
-
-  if (contentFormat === "short") {
-    return isShort;
-  }
-
-  if (contentFormat === "live") {
-    return isLive;
-  }
-
-  return !isShort && !isLive;
+  return matchesVideoFormatRankingPool({
+    videoFormat: input.videoFormat,
+    liveState: input.liveState,
+    contentFormat: input.contentFormat,
+  });
 }
 
 export function matchesVideoRankingContentFormat(
-  video: Pick<Video, "contentKind" | "durationSeconds">,
+  video: Pick<Video, "contentKind">,
   contentFormat: RankingContentFormat,
 ): boolean {
   if (video.contentKind === "short") {
@@ -84,12 +53,7 @@ export function matchesVideoRankingContentFormat(
     return contentFormat === "regular";
   }
 
-  return matchesRankingContentFormat({
-    isShort: null,
-    isLive: null,
-    durationSeconds: video.durationSeconds ?? null,
-    contentFormat,
-  });
+  return false;
 }
 
 export function filterVideosByRankingContentFormat(
@@ -111,4 +75,28 @@ export function countRankingLive(videos: Video[]): number {
   return videos.filter((video) =>
     matchesVideoRankingContentFormat(video, "live"),
   ).length;
+}
+
+export function resolveVideoContentKindFromRow(input: {
+  videoFormat?: VideoFormat | null;
+  liveState?: LiveState | null;
+}): Video["contentKind"] {
+  return resolveContentKindFromClassification(input);
+}
+
+/** @deprecated use matchesRankingContentFormat with videoFormat/liveState */
+export function isRankingLiveVideo(input: {
+  liveState?: LiveState | null;
+}): boolean {
+  return input.liveState === "active";
+}
+
+/** @deprecated use matchesRankingContentFormat with videoFormat/liveState */
+export function isRankingShortVideo(input: {
+  videoFormat?: VideoFormat | null;
+  liveState?: LiveState | null;
+}): boolean {
+  return (
+    input.liveState === "none" && input.videoFormat === "short"
+  );
 }

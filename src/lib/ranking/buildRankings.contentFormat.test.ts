@@ -160,7 +160,7 @@ describe("buildRankings content format isolation", () => {
 
     const result = await buildRankings("buzz", "24h", "shorts", "all");
 
-    expect(result.videos.map((video) => video.id)).toEqual(["short-1", "unknown-short"]);
+    expect(result.videos.map((video) => video.id)).toEqual(["short-1"]);
   });
 
   it("returns only live videos in live ranking", async () => {

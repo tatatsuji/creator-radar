@@ -11,6 +11,8 @@
     "test": "vitest run",
     "seed:load": "tsx --env-file=.env.local scripts/load-seed-channels.ts",
     "seed:dry-run": "tsx --env-file=.env.local scripts/load-seed-channels.ts --dry-run",
+    "seed:top100": "tsx --env-file=.env.local scripts/load-seed-channels.ts --top100",
+    "seed:top100:dry-run": "tsx --env-file=.env.local scripts/load-seed-channels.ts --top100 --dry-run",
     "verify:pipeline": "tsx --env-file=.env.local scripts/verify-phase1-pipeline.ts",
     "measurement:backfill": "tsx --env-file=.env.local scripts/measurement-backfill.ts",
     "measurement:backfill:dry-run": "tsx --env-file=.env.local scripts/measurement-backfill.ts --dry-run",
@@ -18,6 +20,7 @@
     "observability:status": "tsx --env-file=.env.local scripts/observability-status.ts",
     "observability:daily-report": "tsx --env-file=.env.local scripts/observability-daily-report.ts",
     "websub:status": "tsx --env-file=.env.local scripts/websub-status.ts",
+    "discovery:kpi": "tsx --env-file=.env.local scripts/discovery-kpi.ts",
     "validation:24h": "tsx --env-file=.env.local scripts/24h-validation-collection.ts",
     "validation:24h:finalize": "tsx --env-file=.env.local scripts/24h-validation-collection.ts --finalize",
     "locks:release-expired": "tsx --env-file=.env.local scripts/release-expired-measurement-locks.ts",
@@ -52,7 +55,15 @@
     "db:inspect-schema": "tsx --env-file=.env.local scripts/inspect-prod-schema.ts",
     "db:apply:004-dev": "tsx --env-file=.env.local scripts/apply-migration-004-dev.ts",
     "db:apply:005-dev": "tsx --env-file=.env.local scripts/apply-migration-005-dev.ts",
-    "db:apply:006-dev": "tsx --env-file=.env.local scripts/apply-migration-006-dev.ts"
+    "db:apply:006-dev": "tsx --env-file=.env.local scripts/apply-migration-006-dev.ts",
+    "db:verify:017": "tsx --env-file=.env.local scripts/apply-migration-017-dev.ts",
+    "db:apply:017-dev": "tsx --env-file=.env.local scripts/apply-migration-017-dev.ts",
+    "video-format:rollback-save": "tsx --env-file=.env.local scripts/save-video-format-rollback.ts",
+    "video-format:backfill": "tsx --env-file=.env.local scripts/backfill-video-format.ts",
+    "video-format:backfill:dry-run": "tsx --env-file=.env.local scripts/backfill-video-format.ts --dry-run",
+    "audit:video-format": "tsx --env-file=.env.local scripts/audit-video-format.ts",
+    "audit:prod-rankings-format": "tsx scripts/audit-prod-rankings-format.ts",
+    "step1-a:prod-pipeline": "tsx --env-file=.env.local scripts/run-step1-a-prod-pipeline.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

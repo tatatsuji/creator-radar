@@ -14,6 +14,7 @@ import type {
   YouTubeVideoItem,
   YouTubeVideosResponse,
 } from "@/lib/youtube/types";
+import { YOUTUBE_VIDEO_DETAILS_PARTS } from "@/lib/youtube/videoDetailsParts";
 import type { GenreId, RankingPeriod } from "@/types";
 
 const MAX_RESULTS = 50;
@@ -28,7 +29,7 @@ async function fetchVideoDetails(videoIds: string[]): Promise<YouTubeVideoItem[]
   for (let index = 0; index < videoIds.length; index += 50) {
     const batch = videoIds.slice(index, index + 50);
     const response = await youtubeFetch<YouTubeVideosResponse>("videos", {
-      part: "snippet,statistics,contentDetails",
+      part: YOUTUBE_VIDEO_DETAILS_PARTS,
       id: batch.join(","),
       maxResults: String(Math.min(batch.length, 50)),
     });
@@ -82,7 +83,7 @@ export async function fetchMostPopularVideoItems(
   }
 
   const params: Record<string, string> = {
-    part: "snippet,statistics,contentDetails",
+    part: YOUTUBE_VIDEO_DETAILS_PARTS,
     chart: "mostPopular",
     regionCode: "JP",
     maxResults: String(maxResults),

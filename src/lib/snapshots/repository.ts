@@ -47,6 +47,28 @@ function isMissingSubscriberCountColumnError(error: {
   );
 }
 
+const VIDEO_FORMAT_COLUMNS = [
+  "video_format",
+  "live_state",
+  "live_broadcast_content",
+  "live_scheduled_start_at",
+  "live_actual_start_at",
+  "live_actual_end_at",
+  "live_metadata_fetch_status",
+  "live_metadata_checked_at",
+  "format_signals",
+] as const;
+
+function isMissingVideoFormatColumnError(error: {
+  code?: string;
+  message?: string;
+}): boolean {
+  if (error.code === "42703") {
+    return true;
+  }
+  return VIDEO_FORMAT_COLUMNS.some((column) => error.message?.includes(column));
+}
+
 const PHASE1_ENRICHMENT_COLUMNS = [
   "description",
   "view_count",
@@ -415,6 +437,15 @@ export async function upsertVideoRecord(input: UpsertVideoInput): Promise<void> 
     duration_seconds: input.durationSeconds ?? null,
     is_short: input.isShort ?? null,
     is_live: input.isLive ?? null,
+    video_format: input.videoFormat ?? null,
+    live_state: input.liveState ?? null,
+    live_broadcast_content: input.liveBroadcastContent ?? null,
+    live_scheduled_start_at: input.liveScheduledStartAt ?? null,
+    live_actual_start_at: input.liveActualStartAt ?? null,
+    live_actual_end_at: input.liveActualEndAt ?? null,
+    live_metadata_fetch_status: input.liveMetadataFetchStatus ?? null,
+    live_metadata_checked_at: input.liveMetadataCheckedAt ?? null,
+    format_signals: input.formatSignals ?? null,
     is_topic_content: input.isTopicContent ?? null,
     view_count: input.viewCount ?? null,
     like_count: input.likeCount ?? null,
@@ -441,6 +472,24 @@ export async function upsertVideoRecord(input: UpsertVideoInput): Promise<void> 
       ...legacyPayload
     } = fullPayload;
     ({ error } = await supabase.from("videos").upsert(legacyPayload, {
+      onConflict: "youtube_video_id",
+    }));
+  }
+
+  if (error && isMissingVideoFormatColumnError(error)) {
+    const {
+      video_format: _videoFormat,
+      live_state: _liveState,
+      live_broadcast_content: _liveBroadcastContent,
+      live_scheduled_start_at: _liveScheduledStartAt,
+      live_actual_start_at: _liveActualStartAt,
+      live_actual_end_at: _liveActualEndAt,
+      live_metadata_fetch_status: _liveMetadataFetchStatus,
+      live_metadata_checked_at: _liveMetadataCheckedAt,
+      format_signals: _formatSignals,
+      ...withoutFormatPayload
+    } = fullPayload;
+    ({ error } = await supabase.from("videos").upsert(withoutFormatPayload, {
       onConflict: "youtube_video_id",
     }));
   }
